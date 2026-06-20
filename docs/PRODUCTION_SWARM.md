@@ -32,8 +32,7 @@ After joining/labeling nodes:
 
 ```bash
 docker node ls
-pnpm smoke:local
-pnpm e2e:local
+RUN_LOCAL_E2E=1 pnpm test -- test/local-e2e.spec.ts
 ```
 
 Then open `/admin/nodes` and confirm each node shows station, GPU type, count, VRAM, enabled, and maintenance state.
@@ -57,17 +56,28 @@ node -r module-alias/register dist/src/main.js
 
 ## Web App Image
 
-Build and publish the control-plane image with an immutable tag:
+GitHub Actions publishes release images to GHCR when release-please creates a
+`vX.Y.Z` tag:
+
+```text
+ghcr.io/wearesyntesa/gpu-platform:X.Y.Z
+ghcr.io/wearesyntesa/gpu-platform:X.Y
+ghcr.io/wearesyntesa/gpu-platform:sha-<shortsha>
+```
+
+For emergency manual builds, use the same immutable version metadata:
 
 ```bash
-export APP_VERSION=2026-06-16-001
+export APP_VERSION=1.2.3
+export APP_REVISION=$(git rev-parse --short HEAD)
+
 docker build \
   --build-arg APP_VERSION="$APP_VERSION" \
-  --build-arg APP_REVISION="$(git rev-parse --short HEAD)" \
+  --build-arg APP_REVISION="$APP_REVISION" \
   --build-arg APP_BUILD_TIME="$(date -Iseconds)" \
-  -t registry.example/rpl-gpu-platform:"$APP_VERSION" \
+  -t ghcr.io/wearesyntesa/gpu-platform:"$APP_VERSION" \
   .
-docker push registry.example/rpl-gpu-platform:"$APP_VERSION"
+docker push ghcr.io/wearesyntesa/gpu-platform:"$APP_VERSION"
 ```
 
 ## Deployment
@@ -96,7 +106,7 @@ docker service scale rpl-gpu_migrations=1
 docker service logs -f rpl-gpu_migrations  # Wait for "Migration completed successfully"
 
 # 2. Update app
-docker service update --image registry.example/rpl-gpu:$VERSION rpl-gpu_app
+docker service update --image ghcr.io/wearesyntesa/gpu-platform:$APP_VERSION rpl-gpu_app
 
 # 3. Cleanup
 docker service scale rpl-gpu_migrations=0

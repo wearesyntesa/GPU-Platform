@@ -4,28 +4,42 @@
 
 RPL GPU Platform uses Docker Swarm with automated migration orchestration. Database migrations run as a one-off service before app updates, eliminating manual SSH steps while maintaining safety.
 
-## Prerequisites
+## Release Image
 
-1. **Build and push the image**:
+Release images are published by GitHub Actions when release-please creates a
+`vX.Y.Z` tag. Use the semver image tag for deployment:
+
+```text
+ghcr.io/wearesyntesa/gpu-platform:X.Y.Z
+ghcr.io/wearesyntesa/gpu-platform:sha-<shortsha>
+```
+
+For emergency manual builds, use the same metadata shape:
 
 ```bash
-export APP_VERSION=$(date +%Y-%m-%d-%H%M)
+export APP_VERSION=1.2.3
 export APP_REVISION=$(git rev-parse --short HEAD)
 
 docker build \
   --build-arg APP_VERSION="$APP_VERSION" \
   --build-arg APP_REVISION="$APP_REVISION" \
   --build-arg APP_BUILD_TIME="$(date -Iseconds)" \
-  -t registry.example/rpl-gpu-platform:"$APP_VERSION" \
+  -t ghcr.io/wearesyntesa/gpu-platform:"$APP_VERSION" \
   .
 
-docker push registry.example/rpl-gpu-platform:"$APP_VERSION"
+docker push ghcr.io/wearesyntesa/gpu-platform:"$APP_VERSION"
 ```
 
-2. **Set deployment environment variables**:
+## Prerequisites
+
+1. Review the release notes and any Drizzle migrations in the release.
+2. Confirm a database backup can be restored before deploying incompatible schema changes.
+3. Set deployment environment variables:
 
 ```bash
-export RPL_GPU_PLATFORM_IMAGE=registry.example/rpl-gpu-platform:$APP_VERSION
+export APP_VERSION=1.2.3
+export APP_REVISION=<release-git-sha>
+export RPL_GPU_PLATFORM_IMAGE=ghcr.io/wearesyntesa/gpu-platform:$APP_VERSION
 export APP_URL=http://192.168.11.76
 export CADDY_PUBLIC_URL=http://192.168.11.76
 export CADDY_APP_UPSTREAM=app:3000
@@ -36,7 +50,16 @@ export DATABASE_URL=postgres://rpl:your-password@postgres:5432/rpl_gpu
 
 ## Deployment Steps
 
-### 1. Run Database Migration
+### 1. Back Up Database
+
+Take a backup before every production deployment:
+
+```bash
+docker exec $(docker ps -q -f name=rpl-gpu_postgres) \
+  pg_dump -U rpl rpl_gpu > backup-$(date +%Y%m%d-%H%M%S).sql
+```
+
+### 2. Run Database Migration
 
 Scale the migration service to 1 replica. It will run migrations and exit:
 
@@ -57,13 +80,13 @@ Migration completed successfully
 
 The migration container exits after the command finishes. Docker Swarm services are designed for long-running tasks, so `docker service scale` may report early termination even when migration succeeded. Trust the log line above and `/readyz` after the app update.
 
-### 2. Update Application
+### 3. Update Application
 
 Once migration succeeds, update the app service:
 
 ```bash
 docker service update \
-  --image registry.example/rpl-gpu-platform:$APP_VERSION \
+  --image ghcr.io/wearesyntesa/gpu-platform:$APP_VERSION \
   --env-add APP_VERSION=$APP_VERSION \
   --env-add APP_REVISION=$APP_REVISION \
   rpl-gpu_app
@@ -75,7 +98,7 @@ Swarm will:
 - Run health checks (`/readyz` must pass)
 - Automatically rollback if health checks fail
 
-### 3. Cleanup Migration Service
+### 4. Cleanup Migration Service
 
 Scale migration service back to 0:
 
@@ -83,7 +106,7 @@ Scale migration service back to 0:
 docker service scale rpl-gpu_migrations=0
 ```
 
-### 4. Verify Deployment
+### 5. Verify Deployment
 
 Check app version and health:
 
@@ -115,60 +138,30 @@ Drizzle migrations are forward-only. For rollback:
 2. **Rollback app** to previous version
 3. **Do not run new migrations** until issues are resolved
 
-**Best practice**: Take a database backup before every deployment:
+## Manual Deployment Checklist
+
+Use this checklist rather than a blind one-shot script. Stop if any step fails.
 
 ```bash
-# Before step 1
-docker exec $(docker ps -q -f name=rpl-gpu_postgres) \
-  pg_dump -U rpl rpl_gpu > backup-$(date +%Y%m%d-%H%M%S).sql
-```
+APP_VERSION=1.2.3
+APP_REVISION=<release-git-sha>
 
-## Full Deployment Script
-
-Combine all steps:
-
-```bash
-#!/bin/bash
-set -e
-
-APP_VERSION=$(date +%Y-%m-%d-%H%M)
-APP_REVISION=$(git rev-parse --short HEAD)
-
-echo "Building image: $APP_VERSION"
-docker build \
-  --build-arg APP_VERSION="$APP_VERSION" \
-  --build-arg APP_REVISION="$APP_REVISION" \
-  --build-arg APP_BUILD_TIME="$(date -Iseconds)" \
-  -t registry.example/rpl-gpu-platform:"$APP_VERSION" \
-  .
-
-echo "Pushing image"
-docker push registry.example/rpl-gpu-platform:"$APP_VERSION"
-
-echo "Backing up database"
 docker exec $(docker ps -q -f name=rpl-gpu_postgres) \
   pg_dump -U rpl rpl_gpu > backup-$(date +%Y%m%d-%H%M%S).sql
 
-echo "Running migrations"
 docker service scale rpl-gpu_migrations=1
-echo "Waiting for migration to complete (check logs in another terminal)"
-read -p "Press Enter when migration is complete..."
+docker service logs -f rpl-gpu_migrations
 
-echo "Updating app"
 docker service update \
-  --image registry.example/rpl-gpu-platform:$APP_VERSION \
+  --image ghcr.io/wearesyntesa/gpu-platform:$APP_VERSION \
   --env-add APP_VERSION=$APP_VERSION \
   --env-add APP_REVISION=$APP_REVISION \
   rpl-gpu_app
 
-echo "Cleaning up migration service"
 docker service scale rpl-gpu_migrations=0
 
-echo "Verifying deployment"
 curl -s http://192.168.11.76/version | jq
 curl -s http://192.168.11.76/readyz | jq
-
-echo "Deployment complete: $APP_VERSION"
 ```
 
 ## Breaking Schema Changes
@@ -219,7 +212,7 @@ If automation fails, run migration manually:
 ```bash
 docker run --rm --network rpl-gpu_default \
   -e DATABASE_URL=postgres://rpl:password@postgres:5432/rpl_gpu \
-  registry.example/rpl-gpu-platform:$APP_VERSION \
+  ghcr.io/wearesyntesa/gpu-platform:$APP_VERSION \
   /app/scripts/migrate.sh
 ```
 

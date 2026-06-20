@@ -1,0 +1,13 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "package-name": "rpl-gpu-platform",
+      "include-component-in-tag": false,
+      "changelog-path": "CHANGELOG.md"
+    }
+  },
+  "pull-request-title-pattern": "chore: release ${version}",
+  "separate-pull-requests": false,
+  "plugins": []
+}

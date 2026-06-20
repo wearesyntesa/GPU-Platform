@@ -1,6 +1,5 @@
-import { Controller, Get, Res, Session, UseGuards } from '@nestjs/common';
+import { Controller, Get, Res, Session } from '@nestjs/common';
 import type { Response } from 'express';
-import { AuthGuard } from '@/core/guards/auth.guard';
 import { sessionUser, type AppSession } from '@/core/session';
 import { renderJsx } from '@/core/render-jsx';
 import { HomePage } from '@/views/dashboard/HomePage';

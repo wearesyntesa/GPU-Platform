@@ -112,8 +112,29 @@ pnpm build
 pnpm start
 ```
 
+## Release Automation
+
+GitHub Actions run CI on pull requests and `main` pushes: lint, typecheck, tests,
+build, and a no-push Docker image build.
+
+Releases use release-please. Conventional commits merged to `main` update the
+release pull request. Merging that release pull request creates a `vX.Y.Z` tag,
+updates `CHANGELOG.md`, and creates the GitHub Release.
+
+Release tags publish the production image to GHCR:
+
+```text
+ghcr.io/wearesyntesa/gpu-platform:X.Y.Z
+ghcr.io/wearesyntesa/gpu-platform:X.Y
+ghcr.io/wearesyntesa/gpu-platform:sha-<shortsha>
+```
+
+Dependency update pull requests are managed by Renovate. Production deployment is
+still a manual Swarm operation so database backup and forward-only Drizzle
+migrations can be reviewed before the app service changes.
+
 ## Production Deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the automated deployment process using Docker Swarm with migration orchestration.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the manual Docker Swarm deployment process using release images and migration orchestration.
 
 See [docs/PRODUCTION_SWARM.md](docs/PRODUCTION_SWARM.md) for Swarm cluster setup and configuration.

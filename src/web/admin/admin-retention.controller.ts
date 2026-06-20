@@ -16,7 +16,6 @@ import { renderJsx } from '@/core/render-jsx';
 import { AuditService } from '@/infrastructure/audit/audit.service';
 import {
   RetentionService,
-  type RetentionDryRunResult,
   type RetentionSettingsValue,
 } from '@/domain/retention/retention.service';
 import { UpdateRetentionSettingsDto } from './dto';

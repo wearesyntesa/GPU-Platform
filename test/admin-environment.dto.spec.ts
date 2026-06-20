@@ -24,7 +24,8 @@ describe('CreateEnvironmentDto', () => {
   });
 
   it('rejects missing imageRef', async () => {
-    const { imageRef: _, ...noImage } = validCreate;
+    const noImage: Partial<typeof validCreate> = { ...validCreate };
+    delete noImage.imageRef;
     const dto = plainToInstance(CreateEnvironmentDto, noImage);
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
