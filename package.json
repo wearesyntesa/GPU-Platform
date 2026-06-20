@@ -1,6 +1,7 @@
 {
   "name": "rpl-gpu-platform",
-  "version": "0.1.0",
+  "version": "0.4.0",
+  "packageManager": "pnpm@10.33.2",
   "private": true,
   "description": "RPL GPU notebook platform built as a low-overhead NestJS modular monolith.",
   "scripts": {

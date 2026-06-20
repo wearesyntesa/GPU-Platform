@@ -1,0 +1,78 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Asia/Jakarta",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "dependencyDashboard": true,
+  "semanticCommits": "disabled",
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Require approval for major updates",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },
+    {
+      "description": "Runtime-sensitive dependencies require approval",
+      "matchPackageNames": [
+        "/^@nestjs\\//",
+        "/^drizzle-/",
+        "pg",
+        "dockerode",
+        "react",
+        "react-dom"
+      ],
+      "dependencyDashboardApproval": true,
+      "automerge": false,
+      "groupName": "runtime-sensitive dependency updates"
+    },
+    {
+      "description": "Group safe npm patch updates",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["patch"],
+      "excludePackageNames": [
+        "/^@nestjs\\//",
+        "/^drizzle-/",
+        "pg",
+        "dockerode",
+        "react",
+        "react-dom"
+      ],
+      "groupName": "npm patch updates"
+    },
+    {
+      "description": "Review npm minor updates together",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor"],
+      "excludePackageNames": [
+        "/^@nestjs\\//",
+        "/^drizzle-/",
+        "pg",
+        "dockerode",
+        "react",
+        "react-dom"
+      ],
+      "groupName": "npm minor updates"
+    },
+    {
+      "description": "Group GitHub Actions patch and minor updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "github actions updates"
+    },
+    {
+      "description": "Review Docker base image updates separately",
+      "matchManagers": ["dockerfile"],
+      "groupName": "docker base image updates",
+      "automerge": false,
+      "dependencyDashboardApproval": true
+    }
+  ]
+}
