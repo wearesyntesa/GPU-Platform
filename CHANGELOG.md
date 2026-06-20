@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/wearesyntesa/GPU-Platform/compare/v0.2.0...v0.3.0) (2026-06-20)
+
+
+### Features
+
+* add urlencoded body parsing, implement CSRF token stripping, and update project documentation ([c46b688](https://github.com/wearesyntesa/GPU-Platform/commit/c46b68832b1b76f29b3d7c5420580f04b546e516))
+
+
+### Bug Fixes
+
+* trigger patch release ([b43b692](https://github.com/wearesyntesa/GPU-Platform/commit/b43b692f9ade38bb5725daf01097595ed562be90))
+
 ## [0.2.0](https://github.com/wearesyntesa/GPU-Platform/compare/v0.1.0...v0.2.0) (2026-06-20)
 
 
