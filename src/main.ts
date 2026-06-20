@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import express = require('express');
 import session = require('express-session');
 import connectPg = require('connect-pg-simple');
 import { Pool } from 'pg';
@@ -12,6 +13,7 @@ import { appVersion } from '@/core/app-info';
 import { AppModule } from '@/app.module';
 import { env } from '@/core/config/env';
 import { HtmlExceptionFilter } from '@/core/filters/html-exception.filter';
+import { authRateLimit, csrfProtection, securityHeaders } from '@/core/security';
 
 function publicPath(): string {
   const paths = [join(process.cwd(), 'public'), join(__dirname, '..', 'public')];
@@ -25,8 +27,12 @@ const version = appVersion();
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   app.enableShutdownHooks();
+  app.disable('x-powered-by');
+  app.set('trust proxy', env.trustProxy);
 
+  app.use(securityHeaders);
   app.useStaticAssets(publicPath());
+  app.use(express.urlencoded({ extended: false }));
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.appVersion = version;
     next();
@@ -44,6 +50,7 @@ async function bootstrap(): Promise<void> {
       secret: env.sessionSecret,
       resave: false,
       saveUninitialized: false,
+      proxy: env.trustProxy !== false,
       store: new PgSession({
         pool: sessionPool,
         tableName: 'user_sessions',
@@ -57,6 +64,8 @@ async function bootstrap(): Promise<void> {
       },
     }),
   );
+  app.use(csrfProtection);
+  app.use(authRateLimit);
 
   app.useGlobalPipes(
     new ValidationPipe({

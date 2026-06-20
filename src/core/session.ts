@@ -6,6 +6,7 @@ export type AppSession = Request['session'] & {
   username?: string;
   role?: UserRole;
   mustChangePassword?: boolean;
+  csrfToken?: string;
 };
 
 export interface SessionUser {

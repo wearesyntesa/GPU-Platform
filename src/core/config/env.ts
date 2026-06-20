@@ -36,6 +36,16 @@ function positiveNumberEnv(name: string, fallback: number): number {
   return value;
 }
 
+function trustProxy(): false | number | string {
+  const raw = process.env.TRUST_PROXY;
+  if (!raw) return isProduction() ? 1 : false;
+  if (raw === 'false') return false;
+  if (raw === 'true') return true as unknown as number;
+  const numeric = Number(raw);
+  if (Number.isInteger(numeric)) return numeric;
+  return raw;
+}
+
 export const env = {
   nodeEnv: requireEnv('NODE_ENV', 'development'),
   appUrl: requireEnv('APP_URL', 'http://localhost:3000'),
@@ -44,6 +54,7 @@ export const env = {
   databaseUrl: requireProductionEnv('DATABASE_URL', 'postgres://rpl:rpl@localhost:15432/rpl_gpu'),
   databasePoolMax: positiveNumberEnv('DATABASE_POOL_MAX', 5),
   sessionDatabasePoolMax: positiveNumberEnv('SESSION_DATABASE_POOL_MAX', 2),
+  trustProxy: trustProxy(),
   dockerHost: requireEnv('DOCKER_HOST', 'unix:///var/run/docker.sock'),
   caddyAdminUrl: requireProductionEnv('CADDY_ADMIN_URL', 'http://127.0.0.1:12019'),
   caddyAppUpstream: requireEnv('CADDY_APP_UPSTREAM', 'host.docker.internal:3000'),
