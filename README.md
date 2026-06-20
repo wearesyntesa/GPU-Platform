@@ -1,6 +1,26 @@
 # RPL GPU Platform
 
-Custom Jupyter-only GPU notebook platform for RPL lab.
+[![CI](https://github.com/wearesyntesa/GPU-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/wearesyntesa/GPU-Platform/actions/workflows/ci.yml)
+[![Release](https://github.com/wearesyntesa/GPU-Platform/actions/workflows/release-please.yml/badge.svg)](https://github.com/wearesyntesa/GPU-Platform/actions/workflows/release-please.yml)
+[![GHCR](https://img.shields.io/badge/ghcr.io-gpu--platform-0f6b4f?logo=github)](https://github.com/wearesyntesa/GPU-Platform/pkgs/container/gpu-platform)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22-43853d?logo=node.js&logoColor=white)](package.json)
+[![pnpm](https://img.shields.io/badge/pnpm-10.33.2-f69220?logo=pnpm&logoColor=white)](package.json)
+
+![GPU Platform](./docs/media/dashboard-screenshot.png)
+
+
+RPL GPU Platform is a lab-focused control plane for granting GPU access,
+launching short-lived Jupyter workspaces on Docker Swarm workers, and managing
+runtime images without exposing Docker operations to end users.
+
+## Highlights
+
+- Request/approve GPU workspace access with admin review flows.
+- Launch isolated Jupyter sessions on labeled Docker Swarm GPU nodes.
+- Route notebooks through Caddy with per-workspace paths and activity tracking.
+- Manage runtime images and derived Python package environments from the UI.
+- Enforce local resource requests and idle workspace shutdown.
+- Ship releases through GitHub Actions, release-please, GHCR, and Renovate.
 
 ## Stack
 
@@ -114,6 +134,6 @@ pnpm start
 
 ## Production Deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the automated deployment process using Docker Swarm with migration orchestration.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the manual Docker Swarm deployment process using release images and migration orchestration.
 
 See [docs/PRODUCTION_SWARM.md](docs/PRODUCTION_SWARM.md) for Swarm cluster setup and configuration.
