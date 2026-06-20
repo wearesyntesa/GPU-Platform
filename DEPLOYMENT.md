@@ -33,31 +33,60 @@ docker push ghcr.io/wearesyntesa/gpu-platform:"$APP_VERSION"
 ## Prerequisites
 
 1. Review the release notes and any Drizzle migrations in the release.
-2. Confirm a database backup can be restored before deploying incompatible schema changes.
-3. Set deployment environment variables:
+2. Create and verify a database backup using the standard command below.
+3. Confirm the production security checklist below.
+4. Set deployment environment variables:
 
 ```bash
 export APP_VERSION=1.2.3
 export APP_REVISION=<release-git-sha>
 export RPL_GPU_PLATFORM_IMAGE=ghcr.io/wearesyntesa/gpu-platform:$APP_VERSION
-export APP_URL=http://192.168.11.76
-export CADDY_PUBLIC_URL=http://192.168.11.76
+export APP_URL=https://gpu.example.org
+export CADDY_PUBLIC_URL=https://gpu.example.org
 export CADDY_APP_UPSTREAM=app:3000
+export TRUST_PROXY=1
 export SESSION_SECRET="your-secret-here"
 export POSTGRES_PASSWORD=your-password
 export DATABASE_URL=postgres://rpl:your-password@postgres:5432/rpl_gpu
 ```
 
+## Production Security Checklist
+
+- Run production behind HTTPS and set `APP_URL` / `CADDY_PUBLIC_URL` to the HTTPS origin.
+- Set `TRUST_PROXY=1` only when Caddy is the direct proxy to the Nest app.
+- Keep `SESSION_SECRET`, `POSTGRES_PASSWORD`, `DATABASE_URL`, and registry credentials out of git, docs, logs, and shell history; prefer Swarm secrets or an external secret store.
+- Generate `SESSION_SECRET` with `openssl rand -base64 48`; production rejects secrets shorter than 32 characters.
+- Keep Caddy admin API private to the Swarm/app network, never public Internet.
+- Ensure users reach Jupyter only through Caddy workspace routes; raw workspace published ports must be blocked from untrusted networks.
+- Keep workspace containers without Docker socket, privileged mode, broad host mounts, or host network access; only `/work` should be mounted.
+
+The app adds security headers, disables `X-Powered-By`, injects CSRF tokens into
+server-rendered POST forms, and rate-limits login/register POSTs. `TRUST_PROXY`
+must match the proxy topology so secure cookies and rate-limit client IPs work
+correctly.
+
 ## Deployment Steps
 
 ### 1. Back Up Database
 
-Take a backup before every production deployment:
+Take a plain SQL backup before every production deployment. Store it outside the
+container host after creation.
 
 ```bash
+mkdir -p backups
+BACKUP_FILE="backups/rpl_gpu-before-${APP_VERSION}-$(date +%Y%m%d-%H%M%S).sql"
+
 docker exec $(docker ps -q -f name=rpl-gpu_postgres) \
-  pg_dump -U rpl rpl_gpu > backup-$(date +%Y%m%d-%H%M%S).sql
+  pg_dump --clean --if-exists -U rpl rpl_gpu > "$BACKUP_FILE"
+
+test -s "$BACKUP_FILE"
+grep -q "PostgreSQL database dump complete" "$BACKUP_FILE"
+ls -lh "$BACKUP_FILE"
 ```
+
+`--clean --if-exists` makes restore replace objects from the backup instead of
+layering old and new schema objects together. Do not continue deployment if the
+backup file is empty or missing the completion marker.
 
 ### 2. Run Database Migration
 
@@ -134,9 +163,47 @@ docker service rollback rpl-gpu_app
 
 Drizzle migrations are forward-only. For rollback:
 
-1. **Restore database from backup** (taken before step 1)
-2. **Rollback app** to previous version
-3. **Do not run new migrations** until issues are resolved
+1. **Stop app writes** by scaling the app to 0 or blocking user access.
+2. **Restore database from backup** taken before the migration.
+3. **Rollback app** to previous version.
+4. **Do not run new migrations** until issues are resolved.
+
+Restore is destructive. Confirm `BACKUP_FILE` points to the intended backup
+before running it:
+
+```bash
+BACKUP_FILE=backups/rpl_gpu-before-1.2.3-YYYYMMDD-HHMMSS.sql
+
+test -s "$BACKUP_FILE"
+grep -q "PostgreSQL database dump complete" "$BACKUP_FILE"
+
+docker service scale rpl-gpu_app=0
+
+docker exec -i $(docker ps -q -f name=rpl-gpu_postgres) \
+  psql -v ON_ERROR_STOP=1 -U rpl -d rpl_gpu < "$BACKUP_FILE"
+
+docker service rollback rpl-gpu_app
+docker service scale rpl-gpu_app=1
+
+curl -s http://192.168.11.76/readyz | jq
+```
+
+If the app cannot safely run against the restored schema, keep `rpl-gpu_app` at
+0 until the previous image is confirmed or a forward-fix image is deployed.
+
+### Restore Drill
+
+Before relying on this process for production, test restore on a non-production
+database:
+
+1. Create a backup with the standard command.
+2. Restore it into an isolated Postgres database or throwaway Swarm stack.
+3. Run migrations against the restored database.
+4. Start the app against the restored database.
+5. Verify `/readyz`, login, admin pages, and workspace request listing.
+
+Record the backup filename, restore date, operator, and verification result in
+the deployment notes.
 
 ## Manual Deployment Checklist
 
@@ -145,9 +212,14 @@ Use this checklist rather than a blind one-shot script. Stop if any step fails.
 ```bash
 APP_VERSION=1.2.3
 APP_REVISION=<release-git-sha>
+mkdir -p backups
+BACKUP_FILE="backups/rpl_gpu-before-${APP_VERSION}-$(date +%Y%m%d-%H%M%S).sql"
 
 docker exec $(docker ps -q -f name=rpl-gpu_postgres) \
-  pg_dump -U rpl rpl_gpu > backup-$(date +%Y%m%d-%H%M%S).sql
+  pg_dump --clean --if-exists -U rpl rpl_gpu > "$BACKUP_FILE"
+
+test -s "$BACKUP_FILE"
+grep -q "PostgreSQL database dump complete" "$BACKUP_FILE"
 
 docker service scale rpl-gpu_migrations=1
 docker service logs -f rpl-gpu_migrations

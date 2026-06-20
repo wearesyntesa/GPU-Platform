@@ -121,6 +121,10 @@ rollback on failed update. `stop-first` is intentional: the control plane is a
 singleton and publishes a fixed port, so `start-first` would add duplicate
 side-effect risks without meaningful HA.
 
+See [DEPLOYMENT.md](../DEPLOYMENT.md) before production launch for TLS, proxy
+trust, secrets, Caddy admin exposure, notebook route, and worker firewall
+requirements.
+
 ### Rollback
 
 Automatic rollback on health check failure, or manual:
@@ -128,6 +132,10 @@ Automatic rollback on health check failure, or manual:
 ```bash
 docker service rollback rpl-gpu_app
 ```
+
+Database migrations are forward-only. If a release needs database rollback,
+follow the backup and restore procedure in [DEPLOYMENT.md](../DEPLOYMENT.md)
+before bringing the app back online.
 
 ### Verification
 

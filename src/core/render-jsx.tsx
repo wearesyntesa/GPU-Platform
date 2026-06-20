@@ -9,6 +9,14 @@ export function renderJsx<P extends object>(
   props: P,
 ): void {
   const element = React.createElement(Component, props);
-  const html = '<!doctype html>' + renderToStaticMarkup(element as ReactElement);
+  const markup = renderToStaticMarkup(element as ReactElement);
+  const csrfToken = res.locals.csrfToken as string | undefined;
+  const html = '<!doctype html>' + injectCsrfToken(markup, csrfToken);
   res.type('html').send(html);
+}
+
+function injectCsrfToken(html: string, csrfToken?: string): string {
+  if (!csrfToken) return html;
+  const input = `<input type="hidden" name="_csrf" value="${csrfToken}" />`;
+  return html.replace(/(<form\b(?=[^>]*\bmethod=["']post["'])[^>]*>)/gi, `$1${input}`);
 }

@@ -48,20 +48,32 @@ function localClient(baseUrl: string) {
     }
     return response;
   };
-  const form = (path: string, data: Record<string, string>): Promise<Response> =>
+  const post = (path: string, data: Record<string, string>, csrfToken: string): Promise<Response> =>
     request(path, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams(data),
+      body: new URLSearchParams({ ...data, _csrf: csrfToken }),
     });
-  return { request, form };
+  const form = async (
+    sourcePath: string,
+    actionPath: string,
+    data: Record<string, string>,
+  ): Promise<Response> => {
+    const html = await (await request(sourcePath)).text();
+    return post(actionPath, data, csrfTokenFrom(html));
+  };
+  return { request, post, form };
+}
+
+function csrfTokenFrom(html: string): string {
+  return matchOrThrow(/name="_csrf" value="([^"]+)"/, html, 'csrf token not found')[1]!;
 }
 
 async function login(
   client: ReturnType<typeof localClient>,
   role: 'admin' | 'user',
 ): Promise<void> {
-  const response = await client.form('/login', credentials[role]);
+  const response = await client.form('/login', '/login', credentials[role]);
   const body = await response.text();
   expect(response.status).toBe(200);
   expect(body.toLowerCase()).toContain('access');
@@ -170,7 +182,7 @@ describe.skipIf(process.env.RUN_LOCAL_E2E !== '1')('local app smoke and workspac
     const environmentId = environmentMatch[1]!;
     const environmentName = environmentMatch[2]!.trim();
 
-    const cancelCreateResponse = await student.form('/grants', {
+    const cancelCreateResponse = await student.form('/grants/new', '/grants', {
       runtimeImageId: environmentId,
       gpuTarget: 'auto',
       requestedCpu: '1',
@@ -178,7 +190,7 @@ describe.skipIf(process.env.RUN_LOCAL_E2E !== '1')('local app smoke and workspac
       purpose: `local-cancel-${Date.now()}`,
     });
     expect(cancelCreateResponse.status).toBe(200);
-    const duplicateCreateResponse = await student.form('/grants', {
+    const duplicateCreateResponse = await student.form('/grants/new', '/grants', {
       runtimeImageId: environmentId,
       gpuTarget: 'auto',
       requestedCpu: '1',
@@ -195,12 +207,12 @@ describe.skipIf(process.env.RUN_LOCAL_E2E !== '1')('local app smoke and workspac
       cancelBody,
       'cancel action not found',
     )[1]!;
-    expect((await student.request(cancelPath, { method: 'POST' })).status).toBe(200);
+    expect((await student.post(cancelPath, {}, csrfTokenFrom(cancelBody))).status).toBe(200);
 
     const purpose = `local-e2e-${Date.now()}`;
     expect(
       (
-        await student.form('/grants', {
+        await student.form('/grants/new', '/grants', {
           runtimeImageId: environmentId,
           gpuTarget: 'auto',
           requestedCpu: '1',
@@ -224,7 +236,7 @@ describe.skipIf(process.env.RUN_LOCAL_E2E !== '1')('local app smoke and workspac
     expect(detailBody).toContain('select name="gpuTarget"');
     expect(
       (
-        await admin.form(`${reviewPath}/approve`, {
+        await admin.form(reviewPath, `${reviewPath}/approve`, {
           runtimeImageId: environmentId,
           gpuTarget: 'auto',
           requestedCpu: '1',
@@ -240,7 +252,7 @@ describe.skipIf(process.env.RUN_LOCAL_E2E !== '1')('local app smoke and workspac
       grantBody,
       'start action not found',
     )[1]!;
-    expect((await student.request(startPath, { method: 'POST' })).status).toBe(200);
+    expect((await student.post(startPath, {}, csrfTokenFrom(grantBody))).status).toBe(200);
 
     for (let attempt = 1; attempt <= 45; attempt += 1) {
       const body = await (await student.request('/workspaces/active')).text();
@@ -284,11 +296,11 @@ describe.skipIf(process.env.RUN_LOCAL_E2E !== '1')('local app smoke and workspac
       expect(proxyResponse.status).toBe(200);
       expect(await proxyResponse.text()).toMatch(/jupyter|lab/i);
       const stopPath = matchOrThrow(
-        /action="(\/workspaces\/[0-9a-f-]{36}\/stop)"/,
+        /action="(\/workspaces\/stop\/[0-9a-f-]{36})"/,
         body,
         'stop action not found',
       )[1]!;
-      expect((await student.request(stopPath, { method: 'POST' })).status).toBe(200);
+      expect((await student.post(stopPath, {}, csrfTokenFrom(body))).status).toBe(200);
       await resetStudentLiveAccess();
       return;
     }
