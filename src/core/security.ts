@@ -60,6 +60,8 @@ export function csrfProtection(req: SessionRequest, res: Response, next: NextFun
     return;
   }
 
+  stripSubmittedCsrfToken(req);
+
   next();
 }
 
@@ -97,6 +99,13 @@ function submittedCsrfToken(req: Request): string | null {
   if (typeof bodyToken === 'string') return bodyToken;
   const headerToken = req.header('x-csrf-token');
   return headerToken ?? null;
+}
+
+function stripSubmittedCsrfToken(req: Request): void {
+  const body = req.body as Record<string, unknown> | undefined;
+  if (body && Object.prototype.hasOwnProperty.call(body, '_csrf')) {
+    delete body._csrf;
+  }
 }
 
 function tokensEqual(a: string, b: string): boolean {

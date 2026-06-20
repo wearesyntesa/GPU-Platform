@@ -1,6 +1,26 @@
 # RPL GPU Platform
 
-Custom Jupyter-only GPU notebook platform for RPL lab.
+[![CI](https://github.com/wearesyntesa/GPU-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/wearesyntesa/GPU-Platform/actions/workflows/ci.yml)
+[![Release](https://github.com/wearesyntesa/GPU-Platform/actions/workflows/release-please.yml/badge.svg)](https://github.com/wearesyntesa/GPU-Platform/actions/workflows/release-please.yml)
+[![GHCR](https://img.shields.io/badge/ghcr.io-gpu--platform-0f6b4f?logo=github)](https://github.com/wearesyntesa/GPU-Platform/pkgs/container/gpu-platform)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22-43853d?logo=node.js&logoColor=white)](package.json)
+[![pnpm](https://img.shields.io/badge/pnpm-10.33.2-f69220?logo=pnpm&logoColor=white)](package.json)
+
+![GPU Platform](./docs/media/dashboard-screenshot.png)
+
+
+RPL GPU Platform is a lab-focused control plane for granting GPU access,
+launching short-lived Jupyter workspaces on Docker Swarm workers, and managing
+runtime images without exposing Docker operations to end users.
+
+## Highlights
+
+- Request/approve GPU workspace access with admin review flows.
+- Launch isolated Jupyter sessions on labeled Docker Swarm GPU nodes.
+- Route notebooks through Caddy with per-workspace paths and activity tracking.
+- Manage runtime images and derived Python package environments from the UI.
+- Enforce local resource requests and idle workspace shutdown.
+- Ship releases through GitHub Actions, release-please, GHCR, and Renovate.
 
 ## Stack
 
@@ -111,27 +131,6 @@ student01 / Student01Lab!
 pnpm build
 pnpm start
 ```
-
-## Release Automation
-
-GitHub Actions run CI on pull requests and `main` pushes: lint, typecheck, tests,
-build, and a no-push Docker image build.
-
-Releases use release-please. Conventional commits merged to `main` update the
-release pull request. Merging that release pull request creates a `vX.Y.Z` tag,
-updates `CHANGELOG.md`, and creates the GitHub Release.
-
-Release tags publish the production image to GHCR:
-
-```text
-ghcr.io/wearesyntesa/gpu-platform:X.Y.Z
-ghcr.io/wearesyntesa/gpu-platform:X.Y
-ghcr.io/wearesyntesa/gpu-platform:sha-<shortsha>
-```
-
-Dependency update pull requests are managed by Renovate. Production deployment is
-still a manual Swarm operation so database backup and forward-only Drizzle
-migrations can be reviewed before the app service changes.
 
 ## Production Deployment
 

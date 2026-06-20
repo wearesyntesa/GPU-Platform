@@ -70,6 +70,24 @@ describe('csrfProtection', () => {
     expect(send).toHaveBeenCalledWith('Invalid CSRF token');
     expect(next).not.toHaveBeenCalled();
   });
+
+  it('strips valid CSRF fields before Nest validation sees the body', () => {
+    const next = vi.fn() as NextFunction;
+    const response = { locals: {} } as Response;
+    const token = 'b'.repeat(64);
+    const body = { _csrf: token, username: 'student' };
+    const request = {
+      method: 'POST',
+      body,
+      header: vi.fn(),
+      session: { csrfToken: token } as AppSession,
+    } as unknown as Request & { session: AppSession };
+
+    csrfProtection(request, response, next);
+
+    expect(body).toEqual({ username: 'student' });
+    expect(next).toHaveBeenCalled();
+  });
 });
 
 describe('securityHeaders', () => {

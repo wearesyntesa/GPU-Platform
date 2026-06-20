@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import express = require('express');
 import session = require('express-session');
 import connectPg = require('connect-pg-simple');
 import { Pool } from 'pg';
@@ -31,6 +32,7 @@ async function bootstrap(): Promise<void> {
 
   app.use(securityHeaders);
   app.useStaticAssets(publicPath());
+  app.use(express.urlencoded({ extended: false }));
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.appVersion = version;
     next();
