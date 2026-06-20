@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/wearesyntesa/GPU-Platform/compare/v0.3.0...v0.4.0) (2026-06-20)
+
+
+### Features
+
+* add GHCR image publishing workflow and remove component name from release-please config ([da3d0e6](https://github.com/wearesyntesa/GPU-Platform/commit/da3d0e61b0aec6b6eae8b2e58fde2639048f9d3f))
+
 ## [0.3.0](https://github.com/wearesyntesa/GPU-Platform/compare/v0.2.0...v0.3.0) (2026-06-20)
 
 
