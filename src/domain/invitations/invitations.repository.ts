@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DbService } from '@/infrastructure/db/db.service';
 import { userInvitations, users } from '@/infrastructure/db/schema';
-import { eq, isNull, gt, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 export type UserRole = 'user' | 'admin';
 
