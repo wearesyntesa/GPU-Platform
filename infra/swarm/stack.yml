@@ -1,0 +1,114 @@
+services:
+  migrations:
+    image: ${RPL_GPU_PLATFORM_IMAGE:?RPL_GPU_PLATFORM_IMAGE is required}
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://rpl:rpl@postgres:5432/rpl_gpu}
+      MIGRATION_SEMAPHORE_PATH: /run/rpl-gpu/migration-complete
+    command: ["/app/scripts/migrate.sh"]
+    volumes:
+      - migration-state:/run/rpl-gpu
+    deploy:
+      replicas: 0
+      placement:
+        constraints:
+          - node.labels.rpl.role == master
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    stop_grace_period: 300s
+
+  app:
+    image: ${RPL_GPU_PLATFORM_IMAGE:?RPL_GPU_PLATFORM_IMAGE is required}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      APP_VERSION: ${APP_VERSION:-local}
+      APP_REVISION: ${APP_REVISION:-unknown}
+      DATABASE_URL: ${DATABASE_URL:-postgres://rpl:rpl@postgres:5432/rpl_gpu}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-5}
+      SESSION_DATABASE_POOL_MAX: ${SESSION_DATABASE_POOL_MAX:-2}
+      CADDY_ADMIN_URL: ${CADDY_ADMIN_URL:-http://caddy:2019}
+      CADDY_APP_UPSTREAM: ${CADDY_APP_UPSTREAM:-app:3000}
+      CADDY_PUBLIC_URL: ${CADDY_PUBLIC_URL:-http://localhost}
+      CADDY_ACCESS_LOG_PATH: /logs/access.json
+      DOCKER_HOST: unix:///var/run/docker.sock
+      LOCAL_WORKER_ADDRESS: ${LOCAL_WORKER_ADDRESS:-127.0.0.1}
+      MIGRATION_SEMAPHORE_PATH: /run/rpl-gpu/migration-complete
+    volumes:
+      - caddy-logs:/logs
+      - migration-state:/run/rpl-gpu
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3000/readyz'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.rpl.role == master
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 30s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+        monitor: 30s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rpl
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: rpl_gpu
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.rpl.role == master
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      CADDY_APP_UPSTREAM: ${CADDY_APP_UPSTREAM:-app:3000}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - '${CADDY_PUBLISHED_PORT:-80}:8080'
+    configs:
+      - source: caddyfile_root_proxy_v3
+        target: /etc/caddy/Caddyfile
+    volumes:
+      - caddy-logs:/logs
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.rpl.role == master
+
+configs:
+  caddyfile_root_proxy_v3:
+    file: ../caddy/Caddyfile
+
+volumes:
+  postgres-data:
+  caddy-logs:
+  migration-state:

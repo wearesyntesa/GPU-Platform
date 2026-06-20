@@ -1,0 +1,16 @@
+{
+  admin 0.0.0.0:2019 {
+    origins 127.0.0.1:12019 localhost:12019 caddy:2019
+  }
+}
+
+:8080 {
+  log {
+    output file /logs/access.json
+    format json
+  }
+
+  respond /healthz 200
+
+  reverse_proxy {$CADDY_APP_UPSTREAM:host.docker.internal:3000}
+}

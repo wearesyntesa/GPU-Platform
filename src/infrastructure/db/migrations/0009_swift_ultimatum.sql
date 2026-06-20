@@ -1,0 +1,2 @@
+ALTER TABLE "platform_settings" ADD COLUMN "max_request_cpu" integer DEFAULT 128 NOT NULL;--> statement-breakpoint
+ALTER TABLE "platform_settings" ADD COLUMN "max_request_memory_gb" integer DEFAULT 1024 NOT NULL;

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+.git/
+.env
+.env.*
+*.log
+infra/dev/caddy-logs/
+.playwright-mcp/
+public/*.css.map

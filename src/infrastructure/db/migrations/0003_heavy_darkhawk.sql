@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "sessions_one_live_workspace_per_worker" ON "sessions" USING btree ("worker_id") WHERE worker_id is not null and status in ('starting', 'running', 'stopping');--> statement-breakpoint
+CREATE UNIQUE INDEX "sessions_one_live_workspace_per_port" ON "sessions" USING btree ("published_port") WHERE published_port is not null and status in ('starting', 'running', 'stopping');

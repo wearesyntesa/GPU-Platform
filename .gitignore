@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+coverage/
+drizzle/meta/_journal.json.tmp
+*.log
+public/*.css.map
+infra/dev/caddy-logs/access.json
+.idea

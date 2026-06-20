@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rpl
+      POSTGRES_PASSWORD: rpl
+      POSTGRES_DB: rpl_gpu
+    ports:
+      - '15432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U rpl -d rpl_gpu']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  caddy:
+    image: caddy:2-alpine
+    user: '${CADDY_UID:-1000}:${CADDY_GID:-1000}'
+    environment:
+      CADDY_APP_UPSTREAM: '${CADDY_APP_UPSTREAM:-host.docker.internal:3000}'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - '18080:8080'
+      - '12019:2019'
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy-logs:/logs
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:
