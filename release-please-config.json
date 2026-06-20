@@ -2,7 +2,6 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "component": "rpl-gpu-platform",
       "package-name": "rpl-gpu-platform",
       "include-component-in-tag": false,
       "changelog-path": "CHANGELOG.md"
