@@ -40,7 +40,7 @@ export function AdminRetentionPage({
 
       {message && <p>{message}</p>}
 
-      <form className="plain-form" method="post" action="/admin/retention/save">
+      <form id="retention-settings-form" className="plain-form" method="post" action="/admin/retention/save">
         <label className="label-check">
           <input type="checkbox" name="enabled" defaultChecked={settings.enabled} />
           Retention enabled
@@ -118,35 +118,21 @@ export function AdminRetentionPage({
             />
           </label>
         </div>
-        <button type="submit" className="btn btn-primary">
-          Save settings
-        </button>
       </form>
 
-      <form
-        className="btn-row back-action"
-        method="post"
-        action="/admin/retention/dry-run"
-      >
-        <input type="hidden" name="enabled" value={settings.enabled ? 'true' : 'false'} />
-        <input type="hidden" name="auditLogDays" value={String(settings.auditLogDays)} />
-        <input type="hidden" name="workspaceDays" value={String(settings.workspaceDays)} />
-        <input type="hidden" name="accessRequestDays" value={String(settings.accessRequestDays)} />
-        <input
-          type="hidden"
-          name="idleStopEnabled"
-          value={settings.idleStopEnabled ? 'true' : 'false'}
-        />
-        <input
-          type="hidden"
-          name="idleTimeoutMinutes"
-          value={String(settings.idleTimeoutMinutes)}
-        />
-        <input type="hidden" name="batchSize" value={String(settings.batchSize)} />
-        <button type="submit" className="btn btn-ghost">
+      <div className="btn-row back-action">
+        <button
+          type="submit"
+          className="btn btn-ghost"
+          form="retention-settings-form"
+          formAction="/admin/retention/dry-run"
+        >
           Dry run cleanup
         </button>
-      </form>
+        <button type="submit" className="btn btn-primary" form="retention-settings-form">
+          Save settings
+        </button>
+      </div>
 
       {dryRun && (
         <>

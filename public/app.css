@@ -533,7 +533,7 @@ legend {
   flex-shrink: 0;
   accent-color: #007aff;
 }
-.plain-form button {
+.plain-form > button {
   margin-top: 1rem;
 }
 

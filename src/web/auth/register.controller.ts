@@ -128,6 +128,7 @@ export class RegisterController {
         fullName: body.fullName,
         email: body.email,
         password: body.password,
+        role: invitation?.role,
       });
     } catch (err) {
       if (err instanceof ConflictException) {
