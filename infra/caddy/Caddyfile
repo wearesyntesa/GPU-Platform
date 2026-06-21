@@ -12,5 +12,8 @@
 
   respond /healthz 200
 
-  reverse_proxy {$CADDY_APP_UPSTREAM:host.docker.internal:3000}
+  reverse_proxy {$CADDY_APP_UPSTREAM:host.docker.internal:3000} {
+    header_up X-Forwarded-Proto https
+    header_up X-Forwarded-Host {host}
+  }
 }
