@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { HealthController } from '@/web/health/health.controller';
+import { env } from '@/core/config/env';
 import type { DbService } from '@/infrastructure/db/db.service';
 import type { CaddyService } from '@/infrastructure/proxy/caddy.service';
 import type { SwarmService } from '@/infrastructure/swarm/swarm.service';
@@ -32,7 +33,9 @@ describe('HealthController', () => {
 
   afterEach(() => {
     delete process.env.MIGRATION_SEMAPHORE_PATH;
+    env.readinessCheckTimeoutMs = 2500;
     rmSync(tempDir, { recursive: true, force: true });
+    vi.useRealTimers();
   });
 
   it('returns liveness metadata without dependency checks', () => {
@@ -64,5 +67,25 @@ describe('HealthController', () => {
     await expect(controller.readyz()).rejects.toMatchObject({
       response: expect.objectContaining({ status: 'error' }),
     });
+  });
+
+  it('returns 503 when a dependency check times out', async () => {
+    vi.useFakeTimers();
+    env.readinessCheckTimeoutMs = 10;
+    const controller = controllerWith({
+      db: { ping: vi.fn().mockReturnValue(new Promise(() => undefined)) },
+    });
+
+    const result = controller.readyz();
+    const assertion = expect(result).rejects.toMatchObject({
+      response: expect.objectContaining({
+        checks: expect.objectContaining({
+          db: { ok: false, message: 'Timed out after 10ms' },
+        }),
+      }),
+    });
+    await vi.advanceTimersByTimeAsync(10);
+
+    await assertion;
   });
 });

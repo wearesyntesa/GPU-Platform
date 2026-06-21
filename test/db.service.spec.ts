@@ -3,10 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const poolMocks = vi.hoisted(() => ({
   connect: vi.fn(),
   end: vi.fn(),
+  Pool: vi.fn(),
 }));
 
 vi.mock('pg', () => ({
-  Pool: vi.fn().mockImplementation(() => ({
+  Pool: poolMocks.Pool.mockImplementation(() => ({
     connect: poolMocks.connect,
     end: poolMocks.end,
   })),
@@ -15,6 +16,30 @@ vi.mock('pg', () => ({
 describe('DbService.withAdvisoryLock', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('configures bounded pool timeouts', async () => {
+    const { DbService } = await import('@/infrastructure/db/db.service');
+
+    new DbService();
+
+    expect(poolMocks.Pool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        max: 5,
+        connectionTimeoutMillis: 3000,
+        idleTimeoutMillis: 30000,
+        maxLifetimeSeconds: 300,
+      }),
+    );
+  });
+
+  it('closes the pool on module destroy', async () => {
+    const { DbService } = await import('@/infrastructure/db/db.service');
+    const service = new DbService();
+
+    await service.onModuleDestroy();
+
+    expect(poolMocks.end).toHaveBeenCalledWith();
   });
 
   it('returns null when the advisory lock is already held', async () => {

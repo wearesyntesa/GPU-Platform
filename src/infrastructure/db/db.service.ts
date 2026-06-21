@@ -7,7 +7,13 @@ import * as schema from './schema';
 @Injectable()
 export class DbService implements OnModuleDestroy {
   private readonly logger = new Logger(DbService.name);
-  private readonly pool = new Pool({ connectionString: env.databaseUrl, max: env.databasePoolMax });
+  private readonly pool = new Pool({
+    connectionString: env.databaseUrl,
+    max: env.databasePoolMax,
+    connectionTimeoutMillis: env.databaseConnectionTimeoutMs,
+    idleTimeoutMillis: env.databaseIdleTimeoutMs,
+    maxLifetimeSeconds: env.databaseMaxLifetimeSeconds,
+  });
   readonly db = drizzle(this.pool, { schema });
 
   async ping(): Promise<void> {

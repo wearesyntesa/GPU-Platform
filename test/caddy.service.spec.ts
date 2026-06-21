@@ -72,7 +72,17 @@ describe('CaddyService', () => {
     expect(addedRoute).toMatchObject({
       '@id': 'session--workspaces-session-1',
       match: [{ path: ['/workspaces/session-1/*', '/workspaces/session-1'] }],
-      handle: [{ handler: 'reverse_proxy', upstreams: [{ dial: 'host.docker.internal:3000' }] }],
+      handle: [
+        {
+          handler: 'reverse_proxy',
+          transport: {
+            protocol: 'http',
+            dial_timeout: '3s',
+            response_header_timeout: '30s',
+          },
+          upstreams: [{ dial: 'host.docker.internal:3000' }],
+        },
+      ],
       terminal: true,
     });
   });

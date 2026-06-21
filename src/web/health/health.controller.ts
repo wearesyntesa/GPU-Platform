@@ -4,6 +4,7 @@ import { DbService } from '@/infrastructure/db/db.service';
 import { CaddyService } from '@/infrastructure/proxy/caddy.service';
 import { SwarmService } from '@/infrastructure/swarm/swarm.service';
 import { existsSync } from 'node:fs';
+import { env } from '@/core/config/env';
 
 type Check = { ok: boolean; message?: string };
 
@@ -60,10 +61,27 @@ export class HealthController {
 
   private async check(work: () => Promise<void>): Promise<Check> {
     try {
-      await work();
+      await withTimeout(work(), env.readinessCheckTimeoutMs);
       return { ok: true };
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : String(error) };
     }
+  }
+}
+
+async function withTimeout<T>(work: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`Timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 }

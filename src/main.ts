@@ -24,6 +24,16 @@ function publicPath(): string {
 
 const version = appVersion();
 
+function closePoolOnExit(pool: Pool): void {
+  const close = (): void => {
+    void pool.end().catch((error: unknown) => {
+      console.error('Failed to close session pool', error);
+    });
+  };
+  process.once('SIGTERM', close);
+  process.once('SIGINT', close);
+}
+
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   app.enableShutdownHooks();
@@ -42,7 +52,11 @@ async function bootstrap(): Promise<void> {
   const sessionPool = new Pool({
     connectionString: env.databaseUrl,
     max: env.sessionDatabasePoolMax,
+    connectionTimeoutMillis: env.sessionDatabaseConnectionTimeoutMs,
+    idleTimeoutMillis: env.sessionDatabaseIdleTimeoutMs,
+    maxLifetimeSeconds: env.sessionDatabaseMaxLifetimeSeconds,
   });
+  closePoolOnExit(sessionPool);
 
   app.use(
     session({
