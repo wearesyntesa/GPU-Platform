@@ -22,6 +22,7 @@ services:
     image: ${RPL_GPU_PLATFORM_IMAGE:?RPL_GPU_PLATFORM_IMAGE is required}
     environment:
       NODE_ENV: production
+      TZ: Asia/Jakarta
       NODE_OPTIONS: ${NODE_OPTIONS:---max-old-space-size=256}
       PORT: 3000
       APP_URL: ${APP_URL:-http://localhost:3000}
