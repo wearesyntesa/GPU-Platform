@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Layout } from '@/views/layouts/Layout';
 
 interface AdminSettingsPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   settings: {
     selfRegistrationEnabled: boolean;
@@ -14,13 +14,13 @@ interface AdminSettingsPageProps {
 }
 
 export function AdminSettingsPage({
-  username,
+  fullName,
   isAdmin,
   settings,
   message,
 }: AdminSettingsPageProps) {
   return (
-    <Layout title="Platform Settings - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Platform Settings - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>Platform settings</h1>
 
       {message && (

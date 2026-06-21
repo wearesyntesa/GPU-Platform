@@ -12,17 +12,18 @@ export async function applyFixtures(db: Db): Promise<void> {
     const existing = await db
       .select()
       .from(users)
-      .where(eq(users.username, fixture.username))
+      .where(eq(users.email, fixture.email))
       .limit(1);
     const values = {
-      username: fixture.username,
+      fullName: fixture.fullName,
+      email: fixture.email,
       passwordHash,
       role: fixture.role,
       status: 'active' as const,
     };
 
     if (existing[0]) {
-      await db.update(users).set(values).where(eq(users.username, fixture.username));
+      await db.update(users).set(values).where(eq(users.email, fixture.email));
     } else {
       await db.insert(users).values(values);
     }

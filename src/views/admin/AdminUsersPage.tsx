@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 interface UserRow {
   id: string;
-  username: string;
+  fullName: string;
   email: string | null;
   role: string;
   status: string;
@@ -12,18 +12,18 @@ interface UserRow {
 }
 
 interface AdminUsersPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   users: UserRow[];
   message: string | null;
   temporaryPassword?: {
-    username: string;
+    fullName: string;
     password: string;
   };
 }
 
 export function AdminUsersPage({
-  username,
+  fullName,
   isAdmin,
   users,
   message,
@@ -43,7 +43,7 @@ export function AdminUsersPage({
   };
 
   return (
-    <Layout title="Users - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Users - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <div className="page-actions">
         <h1>Users</h1>
         <div className="button-group">
@@ -63,7 +63,7 @@ export function AdminUsersPage({
         <div className="notice notice-warning">
           <strong className="notice-title-inline">
             <AlertTriangle size={15} />
-            Temporary password for {temporaryPassword.username}
+            Temporary password for {temporaryPassword.fullName}
           </strong>
           <div className="password-display">
             <code className="password-value">{temporaryPassword.password}</code>
@@ -101,7 +101,7 @@ export function AdminUsersPage({
           <table className="table">
             <thead>
               <tr>
-                <th>Username</th>
+                <th>Full name</th>
                 <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
@@ -112,7 +112,7 @@ export function AdminUsersPage({
             <tbody>
               {users.map((user) => (
                 <tr key={user.id}>
-                  <td>{user.username}</td>
+                  <td>{user.fullName}</td>
                   <td>{user.email ?? '—'}</td>
                   <td>{user.role}</td>
                   <td>{user.status}</td>

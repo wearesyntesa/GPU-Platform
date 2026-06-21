@@ -20,6 +20,7 @@
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/infrastructure/db/fixtures/seed.ts",
+    "db:seed:prod": "node -r module-alias/register dist/src/infrastructure/db/fixtures/seed.js",
     "dev:setup": "bash scripts/dev/setup-local-swarm.sh",
     "dev:down": "docker compose --env-file .env -f infra/dev/docker-compose.yml down",
     "dev:reset": "docker compose --env-file .env -f infra/dev/docker-compose.yml down --volumes",

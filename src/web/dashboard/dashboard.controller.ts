@@ -19,7 +19,7 @@ export class DashboardController {
       return;
     }
     renderJsx(res, HomePage, {
-      username: user.username,
+      fullName: user.fullName,
       role: user.role,
       isAdmin: user.role === 'admin',
     });

@@ -10,11 +10,11 @@ export type UserRole = 'user' | 'admin';
 export class UsersRepository {
   constructor(private readonly dbService: DbService) {}
 
-  async findActiveByUsername(username: string): Promise<UserRow | null> {
+  async findActiveByEmail(email: string): Promise<UserRow | null> {
     const rows = await this.dbService.db
       .select()
       .from(users)
-      .where(and(eq(users.username, username), eq(users.status, 'active')))
+      .where(and(eq(users.email, email), eq(users.status, 'active')))
       .limit(1);
     return rows[0] ?? null;
   }
@@ -29,8 +29,8 @@ export class UsersRepository {
   }
 
   async create(data: {
-    username: string;
-    email: string | null;
+    fullName: string;
+    email: string;
     passwordHash: string;
     role: UserRole;
   }): Promise<UserRow> {

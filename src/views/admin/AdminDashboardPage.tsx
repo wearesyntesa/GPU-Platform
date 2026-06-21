@@ -20,12 +20,12 @@ interface PendingGrantItem {
     requestedMemoryGb: number;
     purpose: string | null;
   };
-  user: { username: string };
+  user: { fullName: string };
   environment: { name: string };
 }
 
 interface AdminDashboardPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   pendingGrants: {
     items: PendingGrantItem[];
@@ -35,7 +35,7 @@ interface AdminDashboardPageProps {
   };
 }
 
-export function AdminDashboardPage({ username, isAdmin, pendingGrants }: AdminDashboardPageProps) {
+export function AdminDashboardPage({ fullName, isAdmin, pendingGrants }: AdminDashboardPageProps) {
   const shortcuts = [
     {
       href: '/admin/nodes',
@@ -89,7 +89,7 @@ export function AdminDashboardPage({ username, isAdmin, pendingGrants }: AdminDa
   ];
 
   return (
-    <Layout title="Admin - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Admin - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <section className="admin-hero">
         <div>
           <h1>Operations</h1>
@@ -134,7 +134,7 @@ export function AdminDashboardPage({ username, isAdmin, pendingGrants }: AdminDa
                   {pendingGrants.items.map((item) => (
                     <tr key={item.grant.id}>
                       <td>{String(item.grant.createdAt)}</td>
-                      <td>{item.user.username}</td>
+                      <td>{item.user.fullName}</td>
                       <td>{item.environment.name}</td>
                       <td>{item.grant.gpuTarget}</td>
                       <td>{item.grant.requestedCpu}</td>

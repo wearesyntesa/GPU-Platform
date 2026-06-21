@@ -47,7 +47,7 @@ export class AdminGrantsController {
       Number.isNaN(parsedPage) ? 1 : parsedPage,
       20,
     );
-    renderJsx(res, AdminGrantsPage, { username: user.username, isAdmin: true, grants });
+    renderJsx(res, AdminGrantsPage, { fullName: user.fullName, isAdmin: true, grants });
   }
 
   @Get('/:id')
@@ -74,7 +74,7 @@ export class AdminGrantsController {
         })
       : null;
     renderJsx(res, AdminGrantDetailPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
       grantDetails,
       environments,

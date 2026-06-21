@@ -10,13 +10,13 @@ interface GrantItem {
     requestedCpu: number;
     requestedMemoryGb: number;
   };
-  user: { username: string };
+  user: { fullName: string };
   environment: { name: string };
   activeWorkspace: { id: string; status: string } | null;
 }
 
 interface AdminGrantsPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   grants: {
     items: GrantItem[];
@@ -26,9 +26,9 @@ interface AdminGrantsPageProps {
   };
 }
 
-export function AdminGrantsPage({ username, isAdmin, grants }: AdminGrantsPageProps) {
+export function AdminGrantsPage({ fullName, isAdmin, grants }: AdminGrantsPageProps) {
   return (
-    <Layout title="Approved Grants - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Approved Grants - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>Approved access grants</h1>
 
       {grants.items.length === 0 ? (
@@ -53,7 +53,7 @@ export function AdminGrantsPage({ username, isAdmin, grants }: AdminGrantsPagePr
                 {grants.items.map((item) => (
                   <tr key={item.grant.id}>
                     <td>{String(item.grant.createdAt)}</td>
-                    <td>{item.user.username}</td>
+                    <td>{item.user.fullName}</td>
                     <td>{item.environment.name}</td>
                     <td>{item.grant.gpuTarget}</td>
                     <td>{item.grant.requestedCpu}</td>

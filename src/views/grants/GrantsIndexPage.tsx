@@ -14,7 +14,7 @@ interface GrantItem {
 }
 
 interface GrantsIndexPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   grants: {
     items: GrantItem[];
@@ -28,7 +28,7 @@ interface GrantsIndexPageProps {
 }
 
 export function GrantsIndexPage({
-  username,
+  fullName,
   isAdmin,
   grants,
   liveAccess,
@@ -39,7 +39,7 @@ export function GrantsIndexPage({
   const hasPendingRequest = liveAccess?.status === 'pending';
 
   return (
-    <Layout title="My Access Grants - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="My Access Grants - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <div className="page-actions">
         <h1>My Access Grants</h1>
         {canRequestChange && (

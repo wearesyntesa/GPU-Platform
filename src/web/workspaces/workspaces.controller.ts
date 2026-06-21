@@ -47,7 +47,7 @@ export class WorkspacesController {
     }
 
     renderJsx(res, ActiveWorkspacePage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: user.role === 'admin',
       activeWorkspace,
       workspaceUrl,
@@ -184,7 +184,7 @@ export class WorkspacesController {
     }
 
     renderJsx(res.status(410), InactiveWorkspacePage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: user.role === 'admin',
       workspace: {
         id: sess.id,

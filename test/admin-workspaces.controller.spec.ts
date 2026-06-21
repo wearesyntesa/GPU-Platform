@@ -6,7 +6,7 @@ import type { AppSession } from '@/core/session';
 
 const adminSession = {
   userId: 'admin-1',
-  username: 'admin',
+  fullName: 'Admin User',
   role: 'admin',
 } as AppSession;
 

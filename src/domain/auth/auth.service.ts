@@ -5,7 +5,7 @@ import { PasswordService } from './password.service';
 
 export interface AuthenticatedUser {
   id: string;
-  username: string;
+  fullName: string;
   role: UserRole;
   mustChangePassword: boolean;
 }
@@ -17,16 +17,17 @@ export class AuthService {
     private readonly passwords: PasswordService,
   ) {}
 
-  async verifyLocalLogin(username: string, password: string): Promise<AuthenticatedUser> {
-    const user = await this.users.findActiveByUsername(username);
-    if (user && (await this.passwords.verify(user.passwordHash, password))) {
-      return {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        mustChangePassword: user.mustChangePassword,
-      };
+  async verifyLocalLogin(email: string, password: string): Promise<AuthenticatedUser> {
+    const user = await this.users.findActiveByEmail(email);
+    if (!user || !(await this.passwords.verify(user.passwordHash, password))) {
+      throw new UnauthorizedException('Invalid email or password');
     }
-    throw new UnauthorizedException('Invalid username or password');
+
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword,
+    };
   }
 }

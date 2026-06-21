@@ -20,7 +20,7 @@ interface DryRunResult {
 }
 
 interface AdminRetentionPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   settings: RetentionSettings;
   dryRun: DryRunResult | null;
@@ -28,14 +28,14 @@ interface AdminRetentionPageProps {
 }
 
 export function AdminRetentionPage({
-  username,
+  fullName,
   isAdmin,
   settings,
   dryRun,
   message,
 }: AdminRetentionPageProps) {
   return (
-    <Layout title="Retention Settings - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Retention Settings - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>Retention settings</h1>
 
       {message && <p>{message}</p>}

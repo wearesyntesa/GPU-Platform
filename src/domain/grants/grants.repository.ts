@@ -7,7 +7,7 @@ import type { AdminGrantsApprovalInput } from './grants.service';
 export type Grant = typeof sessionRequests.$inferSelect;
 export type PendingGrantRow = {
   grant: Grant;
-  user: { username: string };
+  user: { fullName: string };
   environment: { name: string };
 };
 export type ApprovedGrantRow = PendingGrantRow & {
@@ -56,7 +56,7 @@ export class GrantsRepository {
     return this.dbService.db
       .select({
         grant: sessionRequests,
-        user: { username: users.username },
+        user: { fullName: users.fullName },
         environment: { name: runtimeImages.name },
       })
       .from(sessionRequests)
@@ -72,7 +72,7 @@ export class GrantsRepository {
     return this.dbService.db
       .select({
         grant: sessionRequests,
-        user: { username: users.username },
+        user: { fullName: users.fullName },
         environment: { name: runtimeImages.name },
         activeWorkspace: { id: sessions.id, status: sessions.status },
       })
@@ -103,13 +103,13 @@ export class GrantsRepository {
 
   async findAdminDetailsById(id: string): Promise<{
     grant: Grant;
-    user: { username: string };
+    user: { fullName: string };
     environment: typeof runtimeImages.$inferSelect;
   } | null> {
     const rows = await this.dbService.db
       .select({
         grant: sessionRequests,
-        user: { username: users.username },
+        user: { fullName: users.fullName },
         environment: runtimeImages,
       })
       .from(sessionRequests)

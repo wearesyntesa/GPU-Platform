@@ -38,7 +38,7 @@ export class AdminRetentionController {
     const user = sessionUser(session);
     if (!user) throw new Error('AdminGuard allowed request without session user');
     renderJsx(res, AdminRetentionPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
       settings: await this.retention.getSettings(),
       dryRun: null,
@@ -85,7 +85,7 @@ export class AdminRetentionController {
     if (!user) throw new Error('AdminGuard allowed request without session user');
     const settings = this.fromDto(dto);
     renderJsx(res, AdminRetentionPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
       settings,
       dryRun: await this.retention.dryRun(settings),

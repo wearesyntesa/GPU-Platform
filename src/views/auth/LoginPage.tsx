@@ -2,21 +2,21 @@ import { Layout } from '@/views/layouts/Layout';
 
 interface LoginPageProps {
   error?: string;
-  formUsername?: string;
-  username?: string | null;
+  formEmail?: string;
+  fullName?: string | null;
   isAdmin?: boolean;
   selfRegistrationEnabled?: boolean;
 }
 
 export function LoginPage({
   error,
-  formUsername,
-  username,
+  formEmail,
+  fullName,
   isAdmin,
   selfRegistrationEnabled,
 }: LoginPageProps) {
   return (
-    <Layout title="Sign in - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Sign in - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <section className="auth-shell" aria-labelledby="login-title">
         <div className="auth-context">
           <p className="eyebrow">RPL GPU Platform</p>
@@ -37,14 +37,14 @@ export function LoginPage({
           )}
 
           <form className="plain-form auth-form" method="post" action="/login">
-            <label htmlFor="username">
-              Username
+            <label htmlFor="email">
+              Email
               <input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
-                defaultValue={formUsername || ''}
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                defaultValue={formEmail || ''}
                 required
               />
             </label>

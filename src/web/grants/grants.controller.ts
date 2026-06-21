@@ -51,7 +51,7 @@ export class GrantsController {
         ? await this.grantsService.hasLiveWorkspaceForGrant(liveAccess.id)
         : false;
     renderJsx(res, GrantsIndexPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: user.role === 'admin',
       grants,
       liveAccess,
@@ -79,7 +79,7 @@ export class GrantsController {
 
     if (liveAccess?.status === 'pending' || hasLiveWorkspace) {
       renderJsx(res, NewGrantPage, {
-        username: user.username,
+        fullName: user.fullName,
         isAdmin: user.role === 'admin',
         environments: [],
         gpuTargets: [],
@@ -97,7 +97,7 @@ export class GrantsController {
       this.platformSettings.getSettings(),
     ]);
     renderJsx(res, NewGrantPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: user.role === 'admin',
       environments,
       gpuTargets,

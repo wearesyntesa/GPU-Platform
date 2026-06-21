@@ -1,10 +1,10 @@
 interface NavbarProps {
-  username?: string | null;
+  fullName?: string | null;
   isAdmin?: boolean;
 }
 
-export function Navbar({ username, isAdmin }: NavbarProps) {
-  if (!username) return null;
+export function Navbar({ fullName, isAdmin }: NavbarProps) {
+  if (!fullName) return null;
   return (
     <nav className="tabs">
       <div className="nav-links">

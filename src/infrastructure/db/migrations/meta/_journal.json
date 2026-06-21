@@ -92,6 +92,13 @@
       "when": 1781889439426,
       "tag": "0012_safe_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1782023259000,
+      "tag": "0013_free_crystal",
+      "breakpoints": true
     }
   ]
 }

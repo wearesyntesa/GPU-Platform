@@ -75,7 +75,7 @@ describe('csrfProtection', () => {
     const next = vi.fn() as NextFunction;
     const response = { locals: {} } as Response;
     const token = 'b'.repeat(64);
-    const body = { _csrf: token, username: 'student' };
+    const body = { _csrf: token, email: 'student01@syntesa.net' };
     const request = {
       method: 'POST',
       body,
@@ -85,7 +85,7 @@ describe('csrfProtection', () => {
 
     csrfProtection(request, response, next);
 
-    expect(body).toEqual({ username: 'student' });
+    expect(body).toEqual({ email: 'student01@syntesa.net' });
     expect(next).toHaveBeenCalled();
   });
 });

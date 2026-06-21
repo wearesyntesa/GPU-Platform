@@ -75,26 +75,25 @@ export function RegisterPage({
           <form className="plain-form auth-form" method="post" action="/register">
             {token && <input type="hidden" name="token" value={token} />}
             <div>
-              <label htmlFor="username">Username</label>
+              <label htmlFor="fullName">Full name</label>
               <input
-                id="username"
-                name="username"
+                id="fullName"
+                name="fullName"
                 type="text"
-                autoComplete="username"
+                autoComplete="name"
                 required
                 maxLength={50}
               />
             </div>
             <div>
-              <label htmlFor="email">
-                Email <span className="optional-label">(optional)</span>
-              </label>
+              <label htmlFor="email">Email</label>
               <input
                 id="email"
                 name="email"
                 type="email"
                 autoComplete="email"
                 defaultValue={email ?? ''}
+                required
                 maxLength={200}
               />
             </div>

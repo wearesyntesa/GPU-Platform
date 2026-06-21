@@ -48,31 +48,31 @@ export class AuthController {
 
   @Post('/login')
   async login(
-    @Body('username') username: string,
+    @Body('email') email: string,
     @Body('password') password: string,
     @Req() request: Request & { session: AppSession },
     @Res() response: Response,
   ): Promise<void> {
     try {
-      const user = await this.auth.verifyLocalLogin(username, password);
-    await regenerateSession(request);
+      const user = await this.auth.verifyLocalLogin(email, password);
+      await regenerateSession(request);
       request.session.userId = user.id;
-      request.session.username = user.username;
+      request.session.fullName = user.fullName;
       request.session.role = user.role;
       request.session.mustChangePassword = user.mustChangePassword;
-    await saveSession(request);
+      await saveSession(request);
       response.redirect(user.mustChangePassword ? '/change-password' : '/');
     } catch (err) {
       if (err instanceof UnauthorizedException) {
         const session = request.session;
         delete session.userId;
-        delete session.username;
+        delete session.fullName;
         delete session.role;
         delete session.mustChangePassword;
         renderJsx(response.status(401), LoginPage, {
-          error: 'Invalid username or password',
-          formUsername: username,
-          username: null,
+          error: 'Invalid email or password',
+          formEmail: email,
+          fullName: null,
           isAdmin: false,
         });
         return;
@@ -85,7 +85,7 @@ export class AuthController {
   @UseGuards(AuthGuard)
   changePasswordPage(@Session() session: AppSession, @Res() response: Response): void {
     renderJsx(response, ChangePasswordPage, {
-      username: session.username ?? '',
+      fullName: session.fullName ?? '',
       isAdmin: session.role === 'admin',
     });
   }
@@ -101,7 +101,7 @@ export class AuthController {
     if (!session.userId) throw new Error('AuthGuard allowed request without user id');
     if (!password || password.length < 8) {
       renderJsx(response.status(400), ChangePasswordPage, {
-        username: session.username ?? '',
+        fullName: session.fullName ?? '',
         isAdmin: session.role === 'admin',
         error: 'Password must be at least 8 characters.',
       });
@@ -109,7 +109,7 @@ export class AuthController {
     }
     if (password !== confirmPassword) {
       renderJsx(response.status(400), ChangePasswordPage, {
-        username: session.username ?? '',
+        fullName: session.fullName ?? '',
         isAdmin: session.role === 'admin',
         error: 'Passwords do not match.',
       });

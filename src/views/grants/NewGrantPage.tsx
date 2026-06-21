@@ -6,7 +6,7 @@ interface Environment {
 }
 
 interface NewGrantPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   environments: Environment[];
   gpuTargets: string[];
@@ -20,7 +20,7 @@ interface NewGrantPageProps {
 }
 
 export function NewGrantPage({
-  username,
+  fullName,
   isAdmin,
   environments,
   gpuTargets,
@@ -30,7 +30,7 @@ export function NewGrantPage({
   hasPendingRequest,
 }: NewGrantPageProps) {
   return (
-    <Layout title="Request Access - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Request Access - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>{isChangeRequest ? 'Request access change' : 'Request workspace access'}</h1>
       {hasPendingRequest && (
         <div className="notice">

@@ -73,7 +73,7 @@ export class NodesService implements OnApplicationBootstrap {
           ? {
               id: workspace.id,
               status: workspace.status ?? 'unknown',
-              requester: row.requester?.username ?? 'unknown',
+              requester: row.requester?.fullName ?? 'unknown',
               environment: row.environment?.name ?? 'unknown',
               startedAt: workspace.startedAt,
               expiresAt: workspace.expiresAt,

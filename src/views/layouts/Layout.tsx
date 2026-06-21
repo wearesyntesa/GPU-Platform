@@ -4,12 +4,12 @@ import { pageGeneratedAt } from '@/core/app-info';
 
 interface LayoutProps {
   title?: string;
-  username?: string | null;
+  fullName?: string | null;
   isAdmin?: boolean;
   children: ReactNode;
 }
 
-export function Layout({ title, username, isAdmin, children }: LayoutProps) {
+export function Layout({ title, fullName, isAdmin, children }: LayoutProps) {
   return (
     <html lang="en">
       <head>
@@ -21,7 +21,7 @@ export function Layout({ title, username, isAdmin, children }: LayoutProps) {
       </head>
       <body>
         <div className="layout-container">
-          <Navbar username={username} isAdmin={isAdmin} />
+          <Navbar fullName={fullName} isAdmin={isAdmin} />
           <main>{children}</main>
           <footer>
             <span>{process.env.APP_VERSION ?? 'dev'} of gpu-platform</span>

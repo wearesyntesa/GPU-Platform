@@ -77,7 +77,7 @@ export class NodesRepository {
         startedAt: Date | null;
         expiresAt: Date | null;
       } | null;
-      requester: { username: string | null } | null;
+      requester: { fullName: string | null } | null;
       environment: { name: string | null } | null;
     }[]
   > {
@@ -90,7 +90,7 @@ export class NodesRepository {
           startedAt: sessions.startedAt,
           expiresAt: sessions.expiresAt,
         },
-        requester: { username: users.username },
+        requester: { fullName: users.fullName },
         environment: { name: runtimeImages.name },
       })
       .from(workers)

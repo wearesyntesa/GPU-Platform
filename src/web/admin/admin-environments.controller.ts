@@ -51,7 +51,7 @@ export class AdminEnvironmentsController {
     if (!user) throw new Error('AdminGuard allowed request without session user');
     const environmentList = await this.environments.listAll();
     renderJsx(res, AdminEnvironmentsPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
       environments: environmentList,
     });
@@ -63,7 +63,7 @@ export class AdminEnvironmentsController {
     const user = sessionUser(session);
     if (!user) throw new Error('AdminGuard allowed request without session user');
     renderJsx(res, AdminEnvironmentFormPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
       environment: null,
     });
@@ -80,7 +80,7 @@ export class AdminEnvironmentsController {
     if (!user) throw new Error('AdminGuard allowed request without session user');
     const validation = this.validateEnvironment(dto);
     if (!validation.ok) {
-      this.renderForm(response, user.username, null, this.formData(dto), validation);
+      this.renderForm(response, user.fullName, null, this.formData(dto), validation);
       return;
     }
 
@@ -113,7 +113,7 @@ export class AdminEnvironmentsController {
     if (!user) throw new Error('AdminGuard allowed request without session user');
     this.renderForm(
       response,
-      user.username,
+      user.fullName,
       null,
       this.formData(dto),
       this.validateEnvironment(dto),
@@ -131,7 +131,7 @@ export class AdminEnvironmentsController {
     if (!user) throw new Error('AdminGuard allowed request without session user');
     const environment = await this.environments.findById(id);
     renderJsx(res, AdminEnvironmentFormPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
       environment,
     });
@@ -151,7 +151,7 @@ export class AdminEnvironmentsController {
     const formData = { ...(existing ?? {}), ...this.formData(dto), id };
     const validation = this.validateEnvironment(formData);
     if (!validation.ok) {
-      this.renderForm(response, user.username, existing, formData, validation);
+      this.renderForm(response, user.fullName, existing, formData, validation);
       return;
     }
 
@@ -186,7 +186,7 @@ export class AdminEnvironmentsController {
     const formData = { ...(existing ?? {}), ...this.formData(dto), id };
     this.renderForm(
       response,
-      user.username,
+      user.fullName,
       existing,
       formData,
       this.validateEnvironment(formData),
@@ -210,13 +210,13 @@ export class AdminEnvironmentsController {
 
   private renderForm(
     response: Response,
-    username: string,
+    fullName: string,
     environment: EnvironmentImage | null,
     formData: EnvironmentFormData,
     validation: ValidationResult,
   ): void {
     renderJsx(response.status(validation.ok ? 200 : 400), AdminEnvironmentFormPage, {
-      username,
+      fullName,
       isAdmin: true,
       environment,
       formData,

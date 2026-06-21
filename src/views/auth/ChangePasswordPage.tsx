@@ -1,14 +1,14 @@
 import { Layout } from '@/views/layouts/Layout';
 
 interface ChangePasswordPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   error?: string;
 }
 
-export function ChangePasswordPage({ username, isAdmin, error }: ChangePasswordPageProps) {
+export function ChangePasswordPage({ fullName, isAdmin, error }: ChangePasswordPageProps) {
   return (
-    <Layout title="Change password - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Change password - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>Change password</h1>
       <p>Your account is using a temporary password. Choose a new password to continue.</p>
 

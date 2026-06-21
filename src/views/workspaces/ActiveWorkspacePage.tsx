@@ -8,7 +8,7 @@ interface ActiveWorkspace {
 }
 
 interface ActiveWorkspacePageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   activeWorkspace: ActiveWorkspace | null;
   workspaceUrl: string | null;
@@ -16,7 +16,7 @@ interface ActiveWorkspacePageProps {
 }
 
 export function ActiveWorkspacePage({
-  username,
+  fullName,
   isAdmin,
   activeWorkspace,
   workspaceUrl,
@@ -114,7 +114,7 @@ export function ActiveWorkspacePage({
       : null;
 
   return (
-    <Layout title="My Workspace - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="My Workspace - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>My workspace</h1>
 
       {message && (

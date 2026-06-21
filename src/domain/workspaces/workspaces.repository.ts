@@ -57,14 +57,14 @@ export class WorkspacesRepository {
   ): Promise<
     {
       workspace: WorkspaceSession;
-      requester: { username: string };
+      requester: { fullName: string };
       environment: { name: string };
     }[]
   > {
     return this.dbService.db
       .select({
         workspace: sessions,
-        requester: { username: users.username },
+        requester: { fullName: users.fullName },
         environment: { name: runtimeImages.name },
       })
       .from(sessions)

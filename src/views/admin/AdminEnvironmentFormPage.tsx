@@ -26,7 +26,7 @@ interface Validation {
 }
 
 interface AdminEnvironmentFormPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   environment: Environment | null;
   formData?: FormData;
@@ -34,7 +34,7 @@ interface AdminEnvironmentFormPageProps {
 }
 
 export function AdminEnvironmentFormPage({
-  username,
+  fullName,
   isAdmin,
   environment,
   formData,
@@ -44,7 +44,7 @@ export function AdminEnvironmentFormPage({
   const title = environment ? 'Edit Environment' : 'New Environment';
 
   return (
-    <Layout title={`${title} - RPL GPU Platform`} username={username} isAdmin={isAdmin}>
+    <Layout title={`${title} - RPL GPU Platform`} fullName={fullName} isAdmin={isAdmin}>
       <h1>{title}</h1>
       <p>
         <a href="/admin/environments" className="btn btn-back">

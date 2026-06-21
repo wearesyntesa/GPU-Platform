@@ -11,12 +11,12 @@ interface WorkspaceItem {
     startedAt: Date | string | null;
     stoppedAt: Date | string | null;
   };
-  requester: { username: string };
+  requester: { fullName: string };
   environment: { name: string };
 }
 
 interface AdminWorkspacesPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   workspaces: {
     items: WorkspaceItem[];
@@ -26,9 +26,9 @@ interface AdminWorkspacesPageProps {
   };
 }
 
-export function AdminWorkspacesPage({ username, isAdmin, workspaces }: AdminWorkspacesPageProps) {
+export function AdminWorkspacesPage({ fullName, isAdmin, workspaces }: AdminWorkspacesPageProps) {
   return (
-    <Layout title="Workspaces - Admin - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Workspaces - Admin - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>Workspaces</h1>
 
       {workspaces.items.length === 0 ? (
@@ -55,7 +55,7 @@ export function AdminWorkspacesPage({ username, isAdmin, workspaces }: AdminWork
                 {workspaces.items.map((item) => (
                   <tr key={item.workspace.id}>
                     <td>{item.workspace.id.slice(0, 8)}</td>
-                    <td>{item.requester.username}</td>
+                    <td>{item.requester.fullName}</td>
                     <td>{item.environment.name}</td>
                     <td>{item.workspace.status}</td>
                     <td>{item.workspace.publishedPort ?? '—'}</td>

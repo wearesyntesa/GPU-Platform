@@ -12,7 +12,7 @@ interface InvitationRow {
 }
 
 interface AdminUserInvitePageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   invitations: InvitationRow[];
   newInviteUrl?: string;
@@ -22,7 +22,7 @@ interface AdminUserInvitePageProps {
 }
 
 export function AdminUserInvitePage({
-  username,
+  fullName,
   isAdmin,
   invitations,
   newInviteUrl,
@@ -30,7 +30,7 @@ export function AdminUserInvitePage({
   error,
 }: AdminUserInvitePageProps) {
   return (
-    <Layout title="Invite User - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Invite User - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>Invite user</h1>
 
       {error && (

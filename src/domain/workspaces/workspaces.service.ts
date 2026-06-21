@@ -48,7 +48,7 @@ export class WorkspacesService {
   ): Promise<
     PageResult<{
       workspace: Session;
-      requester: { username: string };
+      requester: { fullName: string };
       environment: { name: string };
     }>
   > {

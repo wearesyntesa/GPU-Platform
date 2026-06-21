@@ -45,7 +45,7 @@ export class AdminUsersController {
     if (!user) throw new Error('AdminGuard allowed request without session user');
     const allUsers = await this.users.findAll();
     renderJsx(res, AdminUsersPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
       users: allUsers,
       message: message ?? null,
@@ -57,7 +57,7 @@ export class AdminUsersController {
     const user = sessionUser(session);
     if (!user) throw new Error('AdminGuard allowed request without session user');
     renderJsx(res, AdminUserFormPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
     });
   }
@@ -65,7 +65,7 @@ export class AdminUsersController {
   @Post()
   async createUser(
     @Session() session: AppSession,
-    @Body('username') username: string,
+    @Body('fullName') fullName: string,
     @Body('email') email: string,
     @Body('password') password: string,
     @Body('role') role: string,
@@ -76,8 +76,8 @@ export class AdminUsersController {
 
     try {
       const newUser = await this.users.create({
-        username,
-        email: email || undefined,
+        fullName,
+        email,
         password,
         role: (role as UserRole) || 'user',
       });
@@ -86,15 +86,15 @@ export class AdminUsersController {
         action: 'user-create',
         targetType: 'user',
         targetId: newUser.id,
-        metadata: { username: newUser.username, role: newUser.role },
+        metadata: { fullName: newUser.fullName, email: newUser.email, role: newUser.role },
       });
       res.redirect('/admin/users');
     } catch (err) {
       if (err instanceof ConflictException) {
         renderJsx(res.status(409), AdminUserFormPage, {
-          username: actor.username,
+          fullName: actor.fullName,
           isAdmin: true,
-          error: 'Username is already taken.',
+          error: 'Email is already registered.',
         });
         return;
       }
@@ -108,7 +108,7 @@ export class AdminUsersController {
     if (!user) throw new Error('AdminGuard allowed request without session user');
     const allInvitations = await this.invitations.findAll();
     renderJsx(res, AdminUserInvitePage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
       invitations: allInvitations,
       appUrl: env.appUrl,
@@ -133,7 +133,7 @@ export class AdminUsersController {
       );
       const allInvitations = await this.invitations.findAll();
       renderJsx(res, AdminUserInvitePage, {
-        username: user.username,
+        fullName: user.fullName,
         isAdmin: true,
         invitations: allInvitations,
         newInviteUrl: url,
@@ -143,7 +143,7 @@ export class AdminUsersController {
     } catch (err) {
       const allInvitations = await this.invitations.findAll();
       renderJsx(res.status(500), AdminUserInvitePage, {
-        username: user.username,
+        fullName: user.fullName,
         isAdmin: true,
         invitations: allInvitations,
         error: (err as Error).message,
@@ -217,16 +217,16 @@ export class AdminUsersController {
       action: 'admin-password-reset',
       targetType: 'user',
       targetId: id,
-      metadata: { username: user.username },
+      metadata: { fullName: user.fullName, email: user.email },
     });
 
     const allUsers = await this.users.findAll();
     renderJsx(res, AdminUsersPage, {
-      username: actor.username,
+      fullName: actor.fullName,
       isAdmin: true,
       users: allUsers,
       message: 'Temporary password generated. Share it securely with the user.',
-      temporaryPassword: { username: user.username, password: temporaryPassword },
+      temporaryPassword: { fullName: user.fullName, password: temporaryPassword },
     });
   }
 

@@ -15,7 +15,7 @@ const renderJsxMock = vi.mocked(renderJsx);
 
 const userSession = {
   userId: 'user-1',
-  username: 'student01',
+  fullName: 'Student One',
   role: 'user',
 } as AppSession;
 
@@ -60,7 +60,7 @@ describe('WorkspacesController.active', () => {
       mockResponse,
       expect.anything(),
       expect.objectContaining({
-        username: 'student01',
+        fullName: 'Student One',
         isAdmin: false,
         activeWorkspace: null,
         workspaceUrl: null,

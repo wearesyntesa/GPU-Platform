@@ -81,7 +81,7 @@ export class GrantsService {
 
   async findAdminDetailsById(id: string): Promise<{
     grant: typeof sessionRequests.$inferSelect;
-    user: { username: string };
+    user: { fullName: string };
     environment: typeof runtimeImages.$inferSelect;
   } | null> {
     return this.grantsRepository.findAdminDetailsById(id);

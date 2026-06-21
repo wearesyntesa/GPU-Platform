@@ -18,7 +18,7 @@ describe('GrantsIndexPage', () => {
   it('does not offer request changes while an approved grant has a live workspace', () => {
     const html = renderToStaticMarkup(
       <GrantsIndexPage
-        username="student"
+        fullName="student"
         isAdmin={false}
         grants={{ items: [approvedGrant], page: 1, pageCount: 1, total: 1 }}
         liveAccess={approvedGrant}
@@ -36,7 +36,7 @@ describe('GrantsIndexPage', () => {
   it('offers request changes for an approved grant without a live workspace', () => {
     const html = renderToStaticMarkup(
       <GrantsIndexPage
-        username="student"
+        fullName="student"
         isAdmin={false}
         grants={{ items: [approvedGrant], page: 1, pageCount: 1, total: 1 }}
         liveAccess={approvedGrant}
@@ -53,7 +53,7 @@ describe('NewGrantPage', () => {
   it('blocks the direct request form when a request is already pending', () => {
     const html = renderToStaticMarkup(
       <NewGrantPage
-        username="student"
+        fullName="student"
         isAdmin={false}
         environments={[]}
         gpuTargets={[]}

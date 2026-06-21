@@ -43,7 +43,7 @@ describe('HtmlExceptionFilter', () => {
   it('redirects HTML 401 responses to login', () => {
     const { host, response } = createHost('html');
     new HtmlExceptionFilter().catch(
-      new UnauthorizedException('Invalid username or password'),
+      new UnauthorizedException('Invalid email or password'),
       host as never,
     );
     expect(response.redirect).toHaveBeenCalledWith('/login');
@@ -52,7 +52,7 @@ describe('HtmlExceptionFilter', () => {
   it('keeps JSON response shape for JSON clients', () => {
     const { host, response } = createHost('json');
     new HtmlExceptionFilter().catch(
-      new UnauthorizedException('Invalid username or password'),
+      new UnauthorizedException('Invalid email or password'),
       host as never,
     );
     expect(response.status).toHaveBeenCalledWith(401);

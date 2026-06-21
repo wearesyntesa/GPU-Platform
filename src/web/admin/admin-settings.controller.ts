@@ -30,7 +30,7 @@ export class AdminSettingsController {
     if (!user) throw new Error('AdminGuard allowed request without session user');
     const settings = await this.platformSettings.getSettings();
     renderJsx(res, AdminSettingsPage, {
-      username: user.username,
+      fullName: user.fullName,
       isAdmin: true,
       settings,
       message: saved === '1' ? 'Settings saved.' : null,

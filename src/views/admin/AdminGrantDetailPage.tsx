@@ -12,7 +12,7 @@ interface GrantDetails {
     decisionReason: string | null;
     runtimeImageId: string;
   };
-  user: { username: string };
+  user: { fullName: string };
   environment: { id: string; name: string };
 }
 
@@ -22,7 +22,7 @@ interface Environment {
 }
 
 interface AdminGrantDetailPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   grantDetails: GrantDetails | null;
   environments: Environment[];
@@ -35,7 +35,7 @@ interface AdminGrantDetailPageProps {
 }
 
 export function AdminGrantDetailPage({
-  username,
+  fullName,
   isAdmin,
   grantDetails,
   environments,
@@ -44,7 +44,7 @@ export function AdminGrantDetailPage({
   capacityWarning,
 }: AdminGrantDetailPageProps) {
   return (
-    <Layout title="Review Access Request - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Review Access Request - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       {!grantDetails ? (
         <h1>Access request not found</h1>
       ) : (
@@ -54,7 +54,7 @@ export function AdminGrantDetailPage({
             <tbody>
               <tr>
                 <th>Requester</th>
-                <td>{grantDetails.user.username}</td>
+                <td>{grantDetails.user.fullName}</td>
               </tr>
               <tr>
                 <th>Environment</th>

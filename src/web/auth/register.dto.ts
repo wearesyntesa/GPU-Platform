@@ -4,12 +4,11 @@ export class RegisterDto {
   @IsString()
   @MinLength(3)
   @MaxLength(50)
-  username!: string;
+  fullName!: string;
 
-  @IsOptional()
   @IsEmail()
   @MaxLength(200)
-  email?: string;
+  email!: string;
 
   @IsString()
   @MinLength(8)

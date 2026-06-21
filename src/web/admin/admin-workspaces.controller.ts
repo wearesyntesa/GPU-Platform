@@ -38,7 +38,7 @@ export class AdminWorkspacesController {
       Number.isNaN(parsedPage) ? 1 : parsedPage,
       20,
     );
-    renderJsx(res, AdminWorkspacesPage, { username: user.username, isAdmin: true, workspaces });
+    renderJsx(res, AdminWorkspacesPage, { fullName: user.fullName, isAdmin: true, workspaces });
   }
 
   @Post('/:id/stop')

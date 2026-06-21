@@ -52,7 +52,7 @@ export class InvitationsRepository {
         expiresAt: userInvitations.expiresAt,
         createdBy: userInvitations.createdBy,
         createdAt: userInvitations.createdAt,
-        createdByUsername: users.username,
+        createdByUsername: users.fullName,
       })
       .from(userInvitations)
       .leftJoin(users, eq(userInvitations.createdBy, users.id));

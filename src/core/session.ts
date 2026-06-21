@@ -3,7 +3,7 @@ import type { UserRole } from '@/core/types';
 
 export type AppSession = Request['session'] & {
   userId?: string;
-  username?: string;
+  fullName?: string;
   role?: UserRole;
   mustChangePassword?: boolean;
   csrfToken?: string;
@@ -11,16 +11,16 @@ export type AppSession = Request['session'] & {
 
 export interface SessionUser {
   id: string;
-  username: string;
+  fullName: string;
   role: UserRole;
   mustChangePassword: boolean;
 }
 
 export function sessionUser(session: AppSession): SessionUser | null {
-  if (!session.userId || !session.username || !session.role) return null;
+  if (!session.userId || !session.fullName || !session.role) return null;
   return {
     id: session.userId,
-    username: session.username,
+    fullName: session.fullName,
     role: session.role,
     mustChangePassword: session.mustChangePassword ?? false,
   };

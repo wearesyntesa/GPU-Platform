@@ -1,14 +1,14 @@
 import { Layout } from '@/views/layouts/Layout';
 
 interface AdminUserFormPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   error?: string;
 }
 
-export function AdminUserFormPage({ username, isAdmin, error }: AdminUserFormPageProps) {
+export function AdminUserFormPage({ fullName, isAdmin, error }: AdminUserFormPageProps) {
   return (
-    <Layout title="Add User - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Add User - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>Add user</h1>
 
       {error && (
@@ -19,19 +19,19 @@ export function AdminUserFormPage({ username, isAdmin, error }: AdminUserFormPag
 
       <form className="plain-form" method="post" action="/admin/users">
         <div>
-          <label htmlFor="username">Username</label>
+          <label htmlFor="fullName">Full name</label>
           <input
-            id="username"
-            name="username"
+            id="fullName"
+            name="fullName"
             type="text"
             required
             maxLength={50}
-            autoComplete="off"
+            autoComplete="name"
           />
         </div>
         <div>
-          <label htmlFor="email">Email (optional)</label>
-          <input id="email" name="email" type="email" maxLength={200} autoComplete="off" />
+          <label htmlFor="email">Email</label>
+          <input id="email" name="email" type="email" required maxLength={200} autoComplete="off" />
         </div>
         <div>
           <label htmlFor="password">Password</label>

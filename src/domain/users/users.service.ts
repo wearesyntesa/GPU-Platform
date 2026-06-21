@@ -11,8 +11,8 @@ export class UsersService {
     private password: PasswordService,
   ) {}
 
-  async findActiveByUsername(username: string): Promise<UserRow | null> {
-    return this.users.findActiveByUsername(username);
+  async findActiveByEmail(email: string): Promise<UserRow | null> {
+    return this.users.findActiveByEmail(this.normalizeEmail(email));
   }
 
   async findAll(): Promise<UserRow[]> {
@@ -24,15 +24,15 @@ export class UsersService {
   }
 
   async create(data: {
-    username: string;
-    email?: string;
+    fullName: string;
+    email: string;
     password: string;
     role?: UserRole;
   }): Promise<UserRow> {
     const passwordHash = await this.password.hash(data.password);
     return this.users.create({
-      username: data.username,
-      email: data.email ?? null,
+      fullName: data.fullName.trim(),
+      email: this.normalizeEmail(data.email),
       passwordHash,
       role: data.role ?? 'user',
     });
@@ -75,5 +75,9 @@ export class UsersService {
 
   private generateTemporaryPassword(): string {
     return `rpl-${randomBytes(9).toString('base64url').toUpperCase()}`;
+  }
+
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
   }
 }

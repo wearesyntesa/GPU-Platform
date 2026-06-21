@@ -1,6 +1,16 @@
 export const userFixtures = [
-  { username: 'admin', password: 'adminlabrpl', role: 'admin' as const },
-  { username: 'student01', password: 'Student01Lab!', role: 'user' as const },
+  {
+    fullName: 'Admin User',
+    email: 'admin@syntesa.net',
+    password: 'adminlabrpl',
+    role: 'admin' as const,
+  },
+  {
+    fullName: 'Student One',
+    email: 'student01@syntesa.net',
+    password: 'Student01Lab!',
+    role: 'user' as const,
+  },
 ];
 
 export const environmentFixtures = [

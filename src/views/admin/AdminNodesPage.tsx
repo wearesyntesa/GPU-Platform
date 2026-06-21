@@ -27,14 +27,14 @@ interface NodeItem {
 }
 
 interface AdminNodesPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   nodes: NodeItem[];
 }
 
-export function AdminNodesPage({ username, isAdmin, nodes }: AdminNodesPageProps) {
+export function AdminNodesPage({ fullName, isAdmin, nodes }: AdminNodesPageProps) {
   return (
-    <Layout title="Nodes - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Nodes - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>GPU Nodes</h1>
 
       {nodes.length === 0 ? (

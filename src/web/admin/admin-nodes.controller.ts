@@ -20,7 +20,7 @@ export class AdminNodesController {
     const user = sessionUser(session);
     if (!user) throw new Error('AdminGuard allowed request without session user');
     const nodeList = await this.nodes.listWithUsage();
-    renderJsx(res, AdminNodesPage, { username: user.username, isAdmin: true, nodes: nodeList });
+    renderJsx(res, AdminNodesPage, { fullName: user.fullName, isAdmin: true, nodes: nodeList });
   }
 
   @Post('/:id/toggle-enabled')

@@ -10,18 +10,18 @@ interface EnvironmentItem {
 }
 
 interface AdminEnvironmentsPageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   environments: EnvironmentItem[];
 }
 
 export function AdminEnvironmentsPage({
-  username,
+  fullName,
   isAdmin,
   environments,
 }: AdminEnvironmentsPageProps) {
   return (
-    <Layout title="Environments - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Environments - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <div className="page-actions">
         <h1>Environments</h1>
         <a href="/admin/environments/new" className="btn btn-primary">

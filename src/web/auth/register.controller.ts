@@ -125,7 +125,7 @@ export class RegisterController {
     let user: Awaited<ReturnType<UsersService['create']>>;
     try {
       user = await this.users.create({
-        username: body.username,
+        fullName: body.fullName,
         email: body.email,
         password: body.password,
       });
@@ -136,7 +136,7 @@ export class RegisterController {
           requireInvitation: settings.requireInvitation,
           token: body.token,
           email: body.email,
-          error: 'Username is already taken.',
+          error: 'Email is already registered.',
         });
         return;
       }
@@ -153,7 +153,7 @@ export class RegisterController {
 
     await regenerateSession(req);
     req.session.userId = user.id;
-    req.session.username = user.username;
+    req.session.fullName = user.fullName;
     req.session.role = user.role;
     await saveSession(req);
 

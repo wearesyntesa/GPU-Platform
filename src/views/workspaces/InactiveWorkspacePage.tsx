@@ -1,7 +1,7 @@
 import { Layout } from '@/views/layouts/Layout';
 
 interface InactiveWorkspacePageProps {
-  username: string;
+  fullName: string;
   isAdmin: boolean;
   workspace: {
     id: string;
@@ -21,12 +21,12 @@ function stopReasonLabel(reason?: string | null): string {
 }
 
 export function InactiveWorkspacePage({
-  username,
+  fullName,
   isAdmin,
   workspace,
 }: InactiveWorkspacePageProps) {
   return (
-    <Layout title="Session ended - RPL GPU Platform" username={username} isAdmin={isAdmin}>
+    <Layout title="Session ended - RPL GPU Platform" fullName={fullName} isAdmin={isAdmin}>
       <h1>Session ended</h1>
       <p>This notebook link is no longer active.</p>
       <p>

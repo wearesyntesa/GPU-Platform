@@ -26,7 +26,7 @@ describe('NodesService.listWithUsage', () => {
           startedAt: null,
           expiresAt: null,
         },
-        requester: { username: 'student01' },
+        requester: { fullName: 'student01' },
         environment: { name: 'Local Jupyter' },
       },
     ]).listWithUsage();

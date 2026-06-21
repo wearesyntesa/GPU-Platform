@@ -9,11 +9,11 @@ const caddyUrl = process.env.E2E_CADDY_URL ?? 'http://192.168.10.13:18080';
 const databaseUrl = process.env.DATABASE_URL ?? 'postgres://rpl:rpl@localhost:15432/rpl_gpu';
 const credentials = {
   admin: {
-    username: process.env.E2E_ADMIN_USER ?? 'admin',
+    email: process.env.E2E_ADMIN_EMAIL ?? 'admin@syntesa.net',
     password: process.env.E2E_ADMIN_PASSWORD ?? 'adminlabrpl',
   },
   user: {
-    username: process.env.E2E_STUDENT_USER ?? 'student01',
+    email: process.env.E2E_STUDENT_EMAIL ?? 'student01@syntesa.net',
     password: process.env.E2E_STUDENT_PASSWORD ?? 'Student01Lab!',
   },
 };
@@ -96,11 +96,11 @@ async function resetStudentLiveAccess(): Promise<void> {
       select s.swarm_service_id
       from sessions s
       join users u on u.id = s.user_id
-      where u.username = $1
+      where u.email = $1
         and s.status in ('starting', 'running', 'stopping')
         and s.swarm_service_id is not null
     `,
-      [credentials.user.username],
+      [credentials.user.email],
     );
     return result.rows.map((row) => row.swarm_service_id as string);
   });
@@ -115,10 +115,10 @@ async function resetStudentLiveAccess(): Promise<void> {
       set status = 'stopped', stop_reason = 'test_reset', stopped_at = now(), updated_at = now()
       from users u
       where s.user_id = u.id
-        and u.username = $1
+        and u.email = $1
         and s.status in ('starting', 'running', 'stopping')
     `,
-      [credentials.user.username],
+      [credentials.user.email],
     );
     await client.query(
       `
@@ -126,10 +126,10 @@ async function resetStudentLiveAccess(): Promise<void> {
       set status = 'cancelled', updated_at = now()
       from users u
       where sr.user_id = u.id
-        and u.username = $1
+        and u.email = $1
         and sr.status in ('pending', 'approved')
     `,
-      [credentials.user.username],
+      [credentials.user.email],
     );
   });
 }
@@ -165,7 +165,7 @@ describe.skipIf(process.env.RUN_LOCAL_E2E !== '1')('local app smoke and workspac
     const admin = localClient(appUrl);
 
     const loginPage = await student.request('/login');
-    expect(await loginPage.text()).toContain('username');
+    expect(await loginPage.text()).toContain('email');
 
     await login(student, 'user');
     await resetStudentLiveAccess();

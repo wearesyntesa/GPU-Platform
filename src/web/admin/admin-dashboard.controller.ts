@@ -24,6 +24,6 @@ export class AdminDashboardController {
       Number.isNaN(parsedPage) ? 1 : parsedPage,
       20,
     );
-    renderJsx(res, AdminDashboardPage, { username: user.username, isAdmin: true, pendingGrants });
+    renderJsx(res, AdminDashboardPage, { fullName: user.fullName, isAdmin: true, pendingGrants });
   }
 }
