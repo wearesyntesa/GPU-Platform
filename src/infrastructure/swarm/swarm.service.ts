@@ -35,6 +35,11 @@ export interface CreateEnvironmentImageBuildServiceOpts {
   imageHash: string;
   dockerfileBase64: string;
   requirementsBase64: string;
+  baseImageRef?: string;
+  baseContextHash?: string;
+  baseDockerfileBase64?: string;
+  baseStartScriptBase64?: string;
+  baseStartHereBase64?: string;
 }
 
 type GpuDeviceRequest = {
@@ -228,6 +233,15 @@ export class SwarmService {
             `RPL_ENV_IMAGE_REF=${opts.imageRef}`,
             `RPL_ENV_DOCKERFILE_B64=${opts.dockerfileBase64}`,
             `RPL_ENV_REQUIREMENTS_B64=${opts.requirementsBase64}`,
+            ...(opts.baseImageRef
+              ? [
+                  `RPL_BASE_IMAGE_REF=${opts.baseImageRef}`,
+                  `RPL_BASE_CONTEXT_HASH=${opts.baseContextHash ?? ''}`,
+                  `RPL_BASE_DOCKERFILE_B64=${opts.baseDockerfileBase64 ?? ''}`,
+                  `RPL_BASE_START_SCRIPT_B64=${opts.baseStartScriptBase64 ?? ''}`,
+                  `RPL_BASE_START_HERE_B64=${opts.baseStartHereBase64 ?? ''}`,
+                ]
+              : []),
           ],
           Command: ['sh', '-lc', this.environmentImageBuildCommand()],
           Mounts: [
@@ -361,6 +375,7 @@ export class SwarmService {
       'set -eu',
       'build_dir=$(mktemp -d)',
       'trap "rm -rf $build_dir" EXIT',
+      'if [ -n "${RPL_BASE_IMAGE_REF:-}" ]; then base_dir="$build_dir/base"; mkdir -p "$base_dir"; printf %s "$RPL_BASE_DOCKERFILE_B64" | base64 -d > "$base_dir/Dockerfile"; printf %s "$RPL_BASE_START_SCRIPT_B64" | base64 -d > "$base_dir/start.sh"; printf %s "$RPL_BASE_START_HERE_B64" | base64 -d > "$base_dir/START_HERE.ipynb"; docker build --no-cache -t "$RPL_BASE_IMAGE_REF" "$base_dir"; fi',
       'printf %s "$RPL_ENV_DOCKERFILE_B64" | base64 -d > "$build_dir/Dockerfile"',
       'printf %s "$RPL_ENV_REQUIREMENTS_B64" | base64 -d > "$build_dir/requirements.txt"',
       'docker build --no-cache -t "$RPL_ENV_IMAGE_REF" "$build_dir"',

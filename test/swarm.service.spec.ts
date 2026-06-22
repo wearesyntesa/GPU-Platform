@@ -193,6 +193,11 @@ describe('SwarmService.createEnvironmentImageBuildService', () => {
       imageHash: 'abcdef123456',
       dockerfileBase64: 'RE9DS0VSRklMRQ==',
       requirementsBase64: 'cmVxdWlyZW1lbnRz',
+      baseImageRef: 'rpl/jupyter-local:dev',
+      baseContextHash: 'base-hash',
+      baseDockerfileBase64: 'QkFTRS1ET0NLRVJGSUxF',
+      baseStartScriptBase64: 'U1RBUlQ=',
+      baseStartHereBase64: 'Tk9URUJPT0s=',
     });
 
     expect(createService).toHaveBeenCalledWith(
@@ -211,6 +216,14 @@ describe('SwarmService.createEnvironmentImageBuildService', () => {
               'RPL_ENV_IMAGE_REF=rpl-gpu-env-local-jupyter-runtime1:sha-abcdef123456',
               'RPL_ENV_DOCKERFILE_B64=RE9DS0VSRklMRQ==',
               'RPL_ENV_REQUIREMENTS_B64=cmVxdWlyZW1lbnRz',
+              'RPL_BASE_IMAGE_REF=rpl/jupyter-local:dev',
+              'RPL_BASE_CONTEXT_HASH=base-hash',
+              'RPL_BASE_DOCKERFILE_B64=QkFTRS1ET0NLRVJGSUxF',
+              'RPL_BASE_START_SCRIPT_B64=U1RBUlQ=',
+              'RPL_BASE_START_HERE_B64=Tk9URUJPT0s=',
+            ]),
+            Command: expect.arrayContaining([
+              expect.stringContaining('docker build --no-cache -t "$RPL_BASE_IMAGE_REF"'),
             ]),
             Mounts: [
               {

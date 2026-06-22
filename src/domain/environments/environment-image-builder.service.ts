@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,6 +11,16 @@ import type { EnvironmentImage } from './environments.repository';
 
 const execFileAsync = promisify(execFile);
 const buildStrategyVersion = 'pip-v1';
+const managedJupyterLocalImageRef = 'rpl/jupyter-local:dev';
+const jupyterLocalContextDir = join(process.cwd(), 'infra/images/jupyter-local');
+
+interface ManagedBaseImageSpec {
+  imageRef: string;
+  contextHash: string;
+  dockerfileBase64: string;
+  startScriptBase64: string;
+  startHereBase64: string;
+}
 
 function environmentImageName(runtime: EnvironmentImage): string {
   return (
@@ -40,8 +51,11 @@ export interface EnvironmentImageIdentity {
 
 export function environmentImageIdentity(runtime: EnvironmentImage): EnvironmentImageIdentity {
   const normalizedPackages = packageLines(runtime.packageManifest).join('\n');
+  const managedBase = managedBaseImageSpec(runtime.imageRef);
   const imageHash = createHash('sha256')
     .update(runtime.imageRef.trim())
+    .update('\n')
+    .update(managedBase?.contextHash ?? '')
     .update('\n')
     .update(normalizedPackages)
     .update('\n')
@@ -70,6 +84,11 @@ export interface EnvironmentImageBuildSpec {
   imageHash: string;
   dockerfileBase64: string;
   requirementsBase64: string;
+  baseImageRef?: string;
+  baseContextHash?: string;
+  baseDockerfileBase64?: string;
+  baseStartScriptBase64?: string;
+  baseStartHereBase64?: string;
 }
 
 @Injectable()
@@ -99,10 +118,20 @@ export class EnvironmentImageBuilderService {
 
   buildSpec(runtime: EnvironmentImage): EnvironmentImageBuildSpec {
     const identity = environmentImageIdentity(runtime);
+    const managedBase = managedBaseImageSpec(runtime.imageRef);
     return {
       ...identity,
       dockerfileBase64: Buffer.from(environmentDockerfile(runtime.imageRef)).toString('base64'),
       requirementsBase64: Buffer.from(`${packageLines(runtime.packageManifest).join('\n')}\n`).toString('base64'),
+      ...(managedBase
+        ? {
+            baseImageRef: managedBase.imageRef,
+            baseContextHash: managedBase.contextHash,
+            baseDockerfileBase64: managedBase.dockerfileBase64,
+            baseStartScriptBase64: managedBase.startScriptBase64,
+            baseStartHereBase64: managedBase.startHereBase64,
+          }
+        : {}),
     };
   }
 
@@ -157,4 +186,27 @@ export class EnvironmentImageBuilderService {
     const value = (error as unknown as Record<string, unknown>)[key];
     return typeof value === 'string' ? value : '';
   }
+}
+
+function managedBaseImageSpec(imageRef: string): ManagedBaseImageSpec | null {
+  if (imageRef !== managedJupyterLocalImageRef) return null;
+  const dockerfile = readFileSync(join(jupyterLocalContextDir, 'Dockerfile'));
+  const startScript = readFileSync(join(jupyterLocalContextDir, 'start.sh'));
+  const startHere = readFileSync(join(jupyterLocalContextDir, 'START_HERE.ipynb'));
+  const contextHash = createHash('sha256')
+    .update(imageRef)
+    .update('\nDockerfile\0')
+    .update(dockerfile)
+    .update('\nstart.sh\0')
+    .update(startScript)
+    .update('\nSTART_HERE.ipynb\0')
+    .update(startHere)
+    .digest('hex');
+  return {
+    imageRef,
+    contextHash,
+    dockerfileBase64: dockerfile.toString('base64'),
+    startScriptBase64: startScript.toString('base64'),
+    startHereBase64: startHere.toString('base64'),
+  };
 }

@@ -15,6 +15,12 @@ const runtime = {
   packageManifest: 'jupyterlab\n# comment\nnumpy==2.0.0\n',
 } as Parameters<typeof derivedEnvironmentImageRef>[0];
 
+const localJupyterRuntime = {
+  ...runtime,
+  name: 'Local Jupyter',
+  imageRef: 'rpl/jupyter-local:dev',
+} as typeof runtime;
+
 describe('environment image builder helpers', () => {
   it('normalizes package manifest lines', () => {
     expect(packageLines(runtime.packageManifest)).toEqual(['jupyterlab', 'numpy==2.0.0']);
@@ -81,5 +87,19 @@ describe('environment image builder helpers', () => {
     expect(spec.imageRef).toMatch(/^rpl-gpu-env-pytorch-2-4-cuda-12345678:sha-/);
     expect(dockerfile).toContain('FROM python:3.12-slim');
     expect(requirements).toBe('jupyterlab\nnumpy==2.0.0\n');
+  });
+
+  it('includes managed local Jupyter base context for worker-local builds', () => {
+    const service = new EnvironmentImageBuilderService();
+    const spec = service.buildSpec(localJupyterRuntime);
+    const baseDockerfile = Buffer.from(spec.baseDockerfileBase64!, 'base64').toString('utf8');
+    const startScript = Buffer.from(spec.baseStartScriptBase64!, 'base64').toString('utf8');
+    const startHere = Buffer.from(spec.baseStartHereBase64!, 'base64').toString('utf8');
+
+    expect(spec.baseImageRef).toBe('rpl/jupyter-local:dev');
+    expect(spec.baseContextHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(baseDockerfile).toContain('FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04');
+    expect(startScript).toContain('exec jupyter lab');
+    expect(startHere).toContain('Welcome to your RPL GPU Platform session');
   });
 });

@@ -38,6 +38,7 @@ COPY --from=build /app/scripts/migrate.sh ./scripts/migrate.sh
 COPY --from=build /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=build /app/src/infrastructure/db/migrations ./src/infrastructure/db/migrations
 COPY --from=build /app/src/infrastructure/db/schema.ts ./src/infrastructure/db/schema.ts
+COPY --from=build /app/infra/images/jupyter-local ./infra/images/jupyter-local
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
