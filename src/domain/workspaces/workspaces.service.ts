@@ -85,8 +85,8 @@ export class WorkspacesService {
     return this.workspacesRepository.listLiveProxyPaths();
   }
 
-  async pickWorker(gpuTarget: string): Promise<Worker | null> {
-    return this.workspacesRepository.pickWorker(gpuTarget);
+  async pickWorker(gpuTarget: string, readyWorkerIds?: string[]): Promise<Worker | null> {
+    return this.workspacesRepository.pickWorker(gpuTarget, readyWorkerIds);
   }
 
   async allocatePort(): Promise<number | null> {
@@ -99,9 +99,7 @@ export class WorkspacesService {
   }
 
   async generateJupyterToken(requestId: string): Promise<{ raw: string; hash: string }> {
-    const raw = createHmac('sha256', env.sessionSecret)
-      .update(`jupyter:${requestId}`)
-      .digest('hex');
+    const raw = this.buildJupyterToken(requestId);
     const hash = await argon2.hash(raw);
     return { raw, hash };
   }

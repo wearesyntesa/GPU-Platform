@@ -29,6 +29,13 @@ export const sessionStatus = pgEnum('session_status', [
   'failed',
   'expired',
 ]);
+export const runtimeImageWorkerStatus = pgEnum('runtime_image_worker_status', [
+  'pending',
+  'building',
+  'ready',
+  'failed',
+  'removing',
+]);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -96,6 +103,35 @@ export const runtimeImages = pgTable('runtime_images', {
   enabled: boolean('enabled').notNull().default(true),
   ...timestamps,
 });
+
+export const runtimeImageWorkerStatuses = pgTable(
+  'runtime_image_worker_statuses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runtimeImageId: uuid('runtime_image_id')
+      .notNull()
+      .references(() => runtimeImages.id),
+    workerId: uuid('worker_id')
+      .notNull()
+      .references(() => workers.id),
+    imageRef: text('image_ref').notNull(),
+    imageHash: text('image_hash').notNull(),
+    imageId: text('image_id'),
+    artifactSha256: text('artifact_sha256'),
+    status: runtimeImageWorkerStatus('status').notNull().default('pending'),
+    failureReason: text('failure_reason'),
+    checkedAt: timestamp('checked_at', { withTimezone: true }),
+    readyAt: timestamp('ready_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('runtime_image_worker_statuses_runtime_worker_hash_unique').on(
+      table.runtimeImageId,
+      table.workerId,
+      table.imageHash,
+    ),
+  ],
+);
 
 export const sessionRequests = pgTable(
   'session_requests',
@@ -210,4 +246,19 @@ export const userInvitationRelations = relations(userInvitations, ({ one }) => (
 export const runtimeImageRelations = relations(runtimeImages, ({ many }) => ({
   requests: many(sessionRequests),
   sessions: many(sessions),
+  workerStatuses: many(runtimeImageWorkerStatuses),
 }));
+
+export const runtimeImageWorkerStatusRelations = relations(
+  runtimeImageWorkerStatuses,
+  ({ one }) => ({
+    runtimeImage: one(runtimeImages, {
+      fields: [runtimeImageWorkerStatuses.runtimeImageId],
+      references: [runtimeImages.id],
+    }),
+    worker: one(workers, {
+      fields: [runtimeImageWorkerStatuses.workerId],
+      references: [workers.id],
+    }),
+  }),
+);

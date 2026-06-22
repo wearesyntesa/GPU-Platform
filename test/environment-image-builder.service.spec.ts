@@ -1,10 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   derivedEnvironmentImageRef,
+  environmentImageIdentity,
   environmentDockerfile,
   EnvironmentImageBuilderService,
   packageLines,
 } from '@/domain/environments/environment-image-builder.service';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { env } from '@/core/config/env';
 
 const runtime = {
   id: '12345678-1234-1234-1234-123456789abc',
@@ -23,7 +28,17 @@ describe('environment image builder helpers', () => {
     expect(derivedEnvironmentImageRef(runtime)).toBe(
       'rpl-gpu-env-pytorch-2-4-cuda-12345678:current',
     );
-    expect(derivedEnvironmentImageRef(runtime)).toBe(derivedEnvironmentImageRef(runtime));
+  });
+
+  it('derives immutable content-hashed image identities for worker readiness', () => {
+    const first = environmentImageIdentity(runtime);
+    const second = environmentImageIdentity(runtime);
+    const changed = environmentImageIdentity({ ...runtime, packageManifest: 'jupyterlab\nnumpy==2.1.0' });
+
+    expect(first).toEqual(second);
+    expect(first.imageRef).toMatch(/^rpl-gpu-env-pytorch-2-4-cuda-12345678:sha-[0-9a-f]{12}$/);
+    expect(changed.imageHash).not.toBe(first.imageHash);
+    expect(changed.imageRef).not.toBe(first.imageRef);
   });
 
   it('generates a Dockerfile that installs packages into the base image', () => {
@@ -57,5 +72,32 @@ describe('environment image builder helpers', () => {
       20 * 60 * 1000,
     );
     expect(runDocker).toHaveBeenCalledWith(['image', 'rm', 'sha256:old'], 60_000);
+  });
+
+  it('builds, verifies, saves, and hashes immutable image artifacts', async () => {
+    const service = new EnvironmentImageBuilderService();
+    const artifactDir = await mkdtemp(join(tmpdir(), 'rpl-artifacts-'));
+    const runDocker = vi.fn(async (args: string[]) => {
+      if (args[0] === 'image' && args[1] === 'inspect') return { stdout: 'sha256:new\n' };
+      if (args[0] === 'save' && args[2]) await writeFile(args[2], 'artifact');
+      return { stdout: '' };
+    });
+    env.workerImageArtifactDir = artifactDir;
+    (service as unknown as { runDocker: typeof runDocker }).runDocker = runDocker;
+
+    const artifact = await service.buildArtifact(runtime);
+
+    expect(artifact.imageRef).toMatch(/^rpl-gpu-env-pytorch-2-4-cuda-12345678:sha-/);
+    expect(artifact.imageId).toBe('sha256:new');
+    expect(artifact.artifactSha256).toHaveLength(64);
+    expect(runDocker).toHaveBeenCalledWith(
+      expect.arrayContaining(['build', '--no-cache', '-t', artifact.imageRef]),
+      20 * 60 * 1000,
+    );
+    expect(runDocker).toHaveBeenCalledWith(
+      ['run', '--rm', artifact.imageRef, 'python3', '-m', 'pip', 'check'],
+      5 * 60 * 1000,
+    );
+    expect(runDocker).toHaveBeenCalledWith(['save', '-o', artifact.artifactPath, artifact.imageRef], 10 * 60 * 1000);
   });
 });

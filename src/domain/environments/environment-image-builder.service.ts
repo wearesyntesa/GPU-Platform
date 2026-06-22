@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -8,6 +9,17 @@ import { env } from '@/core/config/env';
 import type { EnvironmentImage } from './environments.repository';
 
 const execFileAsync = promisify(execFile);
+const buildStrategyVersion = 'pip-v1';
+
+function environmentImageName(runtime: EnvironmentImage): string {
+  return (
+    runtime.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'environment'
+  );
+}
 
 export function packageLines(manifest: string): string[] {
   return manifest
@@ -17,13 +29,29 @@ export function packageLines(manifest: string): string[] {
 }
 
 export function derivedEnvironmentImageRef(runtime: EnvironmentImage): string {
-  const name =
-    runtime.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 40) || 'environment';
+  const name = environmentImageName(runtime);
   return `rpl-gpu-env-${name}-${runtime.id.slice(0, 8)}:current`;
+}
+
+export interface EnvironmentImageIdentity {
+  imageRef: string;
+  imageHash: string;
+}
+
+export function environmentImageIdentity(runtime: EnvironmentImage): EnvironmentImageIdentity {
+  const normalizedPackages = packageLines(runtime.packageManifest).join('\n');
+  const imageHash = createHash('sha256')
+    .update(runtime.imageRef.trim())
+    .update('\n')
+    .update(normalizedPackages)
+    .update('\n')
+    .update(buildStrategyVersion)
+    .digest('hex');
+  const name = environmentImageName(runtime);
+  return {
+    imageHash,
+    imageRef: `rpl-gpu-env-${name}-${runtime.id.slice(0, 8)}:sha-${imageHash.slice(0, 12)}`,
+  };
 }
 
 export function environmentDockerfile(baseImageRef: string): string {
@@ -35,6 +63,14 @@ export function environmentDockerfile(baseImageRef: string): string {
     'USER 1000',
     '',
   ].join('\n');
+}
+
+export interface BuiltEnvironmentImage {
+  imageRef: string;
+  imageHash: string;
+  imageId: string;
+  artifactPath: string;
+  artifactSha256: string;
 }
 
 @Injectable()
@@ -62,6 +98,37 @@ export class EnvironmentImageBuilderService {
     } finally {
       await rm(contextDir, { recursive: true, force: true });
     }
+  }
+
+  async buildArtifact(runtime: EnvironmentImage): Promise<BuiltEnvironmentImage> {
+    const identity = environmentImageIdentity(runtime);
+    await mkdir(env.workerImageArtifactDir, { recursive: true });
+    const artifactPath = join(env.workerImageArtifactDir, `${identity.imageHash}.tar`);
+    const contextDir = await mkdtemp(join(tmpdir(), 'rpl-env-image-'));
+    try {
+      await writeFile(join(contextDir, 'Dockerfile'), environmentDockerfile(runtime.imageRef));
+      await writeFile(join(contextDir, 'requirements.txt'), `${packageLines(runtime.packageManifest).join('\n')}\n`);
+      this.logger.log(`Building environment image ${identity.imageRef} from ${runtime.imageRef}`);
+      await this.runDocker(['build', '--no-cache', '-t', identity.imageRef, contextDir], 20 * 60 * 1000);
+      await this.runDocker(['run', '--rm', identity.imageRef, 'python3', '-m', 'pip', 'check'], 5 * 60 * 1000);
+      const imageId = await this.imageId(identity.imageRef);
+      if (!imageId) throw new Error(`Built image ${identity.imageRef} is missing after build`);
+      await this.runDocker(['save', '-o', artifactPath, identity.imageRef], 10 * 60 * 1000);
+      const artifactSha256 = createHash('sha256').update(await readFile(artifactPath)).digest('hex');
+      return { ...identity, imageId, artifactPath, artifactSha256 };
+    } finally {
+      await rm(contextDir, { recursive: true, force: true });
+    }
+  }
+
+  async loadArtifactOnWorker(workerAddress: string, artifact: BuiltEnvironmentImage): Promise<string> {
+    const remotePath = `/tmp/${artifact.imageHash}.tar`;
+    await this.runScp(artifact.artifactPath, `${env.workerSshUser}@${workerAddress}:${remotePath}`);
+    await this.runSsh(workerAddress, `test \"$(sha256sum ${remotePath} | cut -d' ' -f1)\" = \"${artifact.artifactSha256}\"`);
+    await this.runSsh(workerAddress, `docker load -i ${remotePath}`);
+    const { stdout } = await this.runSsh(workerAddress, `docker image inspect ${artifact.imageRef} --format '{{.Id}}'`);
+    await this.runSsh(workerAddress, `docker run --rm ${artifact.imageRef} python3 -m pip check`);
+    return stdout.trim();
   }
 
   private async imageId(imageRef: string): Promise<string | null> {
@@ -99,6 +166,40 @@ export class EnvironmentImageBuilderService {
       maxBuffer: 1024 * 1024 * 8,
     });
     return { stdout };
+  }
+
+  private async runSsh(host: string, command: string): Promise<{ stdout: string }> {
+    return execFileAsync(this.sshBinary(), [...this.sshArgs(), `${env.workerSshUser}@${host}`, command], {
+      timeout: 20 * 60 * 1000,
+      maxBuffer: 1024 * 1024 * 8,
+    });
+  }
+
+  private async runScp(source: string, destination: string): Promise<void> {
+    await execFileAsync(this.sshBinary(), [...this.scpArgs(), source, destination], {
+      timeout: 20 * 60 * 1000,
+      maxBuffer: 1024 * 1024 * 8,
+    });
+  }
+
+  private sshBinary(): string {
+    return env.workerSshPassword ? 'sshpass' : 'ssh';
+  }
+
+  private sshArgs(): string[] {
+    const args = this.sshConnectionArgs();
+    return env.workerSshPassword ? ['-p', env.workerSshPassword, 'ssh', ...args] : args;
+  }
+
+  private scpArgs(): string[] {
+    const args = this.sshConnectionArgs();
+    return env.workerSshPassword ? ['-p', env.workerSshPassword, 'scp', ...args] : args;
+  }
+
+  private sshConnectionArgs(): string[] {
+    const base = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/tmp/rpl_gpu_known_hosts'];
+    const key = env.workerSshKeyPath ? ['-i', env.workerSshKeyPath] : [];
+    return [...base, ...key];
   }
 
   private isImageMissingError(error: unknown): boolean {

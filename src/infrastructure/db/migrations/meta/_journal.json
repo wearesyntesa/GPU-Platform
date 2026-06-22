@@ -99,6 +99,13 @@
       "when": 1782023259000,
       "tag": "0013_free_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1782061300742,
+      "tag": "0014_daily_the_fury",
+      "breakpoints": true
     }
   ]
 }

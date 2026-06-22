@@ -6,7 +6,7 @@ import type { CaddyService } from '@/infrastructure/proxy/caddy.service';
 import type { DbService } from '@/infrastructure/db/db.service';
 import type { AuditService } from '@/infrastructure/audit/audit.service';
 import type { sessionRequests } from '@/infrastructure/db/schema';
-import type { EnvironmentImageBuilderService } from '@/domain/environments/environment-image-builder.service';
+import type { EnvironmentImageReadinessService } from '@/domain/environments/environment-image-readiness.service';
 import type { RetentionService } from '@/domain/retention/retention.service';
 import type { WorkspaceActivityLogService } from '@/domain/workspaces/workspace-activity-log.service';
 
@@ -18,7 +18,7 @@ function reconcilerWith(mocks: {
   swarm: Partial<SwarmService>;
   db?: Partial<DbService>;
   audit?: Partial<AuditService>;
-  imageBuilder?: Partial<EnvironmentImageBuilderService>;
+  imageReadiness?: Partial<EnvironmentImageReadinessService>;
   retention?: Partial<RetentionService>;
   activityLog?: Partial<WorkspaceActivityLogService>;
   caddy?: Partial<CaddyService>;
@@ -35,9 +35,11 @@ function reconcilerWith(mocks: {
     (mocks.caddy ?? { listPlatformRouteIds: vi.fn().mockResolvedValue([]) }) as CaddyService,
     (mocks.db ?? {}) as DbService,
     (mocks.audit ?? { record: vi.fn() }) as AuditService,
-    (mocks.imageBuilder ?? {
-      ensureImage: vi.fn().mockResolvedValue('rpl/jupyter-local:dev'),
-    }) as EnvironmentImageBuilderService,
+    (mocks.imageReadiness ?? {
+      scheduleRuntime: vi.fn().mockResolvedValue(undefined),
+      listReadyWorkerIds: vi.fn().mockResolvedValue(['worker-1']),
+      isReady: vi.fn().mockResolvedValue('rpl/jupyter-local:dev'),
+    }) as EnvironmentImageReadinessService,
     (mocks.retention ?? {
       getSettings: vi.fn().mockResolvedValue({ idleStopEnabled: false, idleTimeoutMinutes: 30 }),
     }) as RetentionService,
@@ -83,8 +85,10 @@ describe('WorkspacesReconcilerService provisioning failure', () => {
         findServiceByName: vi.fn().mockResolvedValue(null),
         createService,
       },
-      imageBuilder: {
-        ensureImage: vi.fn().mockResolvedValue('rpl-gpu-env-pytorch-runtime-1:current'),
+      imageReadiness: {
+        scheduleRuntime: vi.fn().mockResolvedValue(undefined),
+        listReadyWorkerIds: vi.fn().mockResolvedValue(['worker-1']),
+        isReady: vi.fn().mockResolvedValue('rpl-gpu-env-pytorch-runtime-1:sha-abcdef123456'),
       },
     });
     const provisionOne = (service as unknown as { provisionOne: ProvisionOne }).provisionOne.bind(
@@ -103,8 +107,45 @@ describe('WorkspacesReconcilerService provisioning failure', () => {
     ).resolves.toBe(true);
 
     expect(createService).toHaveBeenCalledWith(
-      expect.objectContaining({ image: 'rpl-gpu-env-pytorch-runtime-1:current' }),
+      expect.objectContaining({ image: 'rpl-gpu-env-pytorch-runtime-1:sha-abcdef123456' }),
     );
+  });
+
+  it('does not create a session when no worker has the runtime image ready', async () => {
+    const createFromApprovedRequest = vi.fn();
+    const service = reconcilerWith({
+      workspaces: {
+        pickWorker: vi.fn().mockResolvedValue(null),
+        getEnvironmentImage: vi.fn().mockResolvedValue({
+          id: 'runtime-1',
+          imageRef: 'python:3.12-slim',
+          packageManifest: 'jupyterlab\nnumpy',
+        }),
+        createFromApprovedRequest,
+      },
+      swarm: { createService: vi.fn() },
+      imageReadiness: {
+        scheduleRuntime: vi.fn().mockResolvedValue(undefined),
+        listReadyWorkerIds: vi.fn().mockResolvedValue([]),
+        isReady: vi.fn().mockResolvedValue(null),
+      },
+    });
+    const provisionOne = (service as unknown as { provisionOne: ProvisionOne }).provisionOne.bind(
+      service,
+    );
+
+    await expect(
+      provisionOne({
+        id: 'request-1',
+        userId: 'user-1',
+        runtimeImageId: 'runtime-1',
+        gpuTarget: 'auto',
+        requestedCpu: 1,
+        requestedMemoryGb: 1,
+      } as typeof sessionRequests.$inferSelect),
+    ).resolves.toBe(false);
+
+    expect(createFromApprovedRequest).not.toHaveBeenCalled();
   });
 
   it('keeps the grant approved when provisioning fails so the user can retry', async () => {

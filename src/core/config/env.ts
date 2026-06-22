@@ -77,4 +77,8 @@ export const env = {
   sessionPortStart: numberEnv('SESSION_PORT_START', 20000),
   sessionPortEnd: numberEnv('SESSION_PORT_END', 20999),
   localWorkerAddress: requireEnv('LOCAL_WORKER_ADDRESS', '127.0.0.1'),
+  workerSshUser: requireEnv('WORKER_SSH_USER', 'helmy'),
+  workerSshPassword: process.env.WORKER_SSH_PASSWORD,
+  workerSshKeyPath: process.env.WORKER_SSH_KEY_PATH,
+  workerImageArtifactDir: requireEnv('WORKER_IMAGE_ARTIFACT_DIR', '/tmp/rpl-gpu-images'),
 };

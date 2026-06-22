@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { EnvironmentsRepository, type EnvironmentImage } from './environments.repository';
+import { EnvironmentImageReadinessService } from './environment-image-readiness.service';
 
 export type { EnvironmentImage } from './environments.repository';
 
 @Injectable()
 export class EnvironmentsService {
-  constructor(private readonly environmentsRepository: EnvironmentsRepository) {}
+  constructor(
+    private readonly environmentsRepository: EnvironmentsRepository,
+    private readonly readiness: EnvironmentImageReadinessService,
+  ) {}
 
   listEnabled(): Promise<EnvironmentImage[]> {
     return this.environmentsRepository.listEnabled();
@@ -21,7 +25,7 @@ export class EnvironmentsService {
     return this.environmentsRepository.listAll();
   }
 
-  async findById(id: string): Promise<EnvironmentImage | null> {
+  findById(id: string): Promise<EnvironmentImage | null> {
     return this.environmentsRepository.findById(id);
   }
 
@@ -33,7 +37,9 @@ export class EnvironmentsService {
     packageManifest?: string;
     enabled?: boolean;
   }): Promise<string> {
-    return this.environmentsRepository.create(data);
+    const id = await this.environmentsRepository.create(data);
+    void this.readiness.scheduleRuntime(id);
+    return id;
   }
 
   async update(
@@ -48,6 +54,9 @@ export class EnvironmentsService {
     },
   ): Promise<void> {
     await this.environmentsRepository.update(id, data);
+    if (data.imageRef !== undefined || data.packageManifest !== undefined) {
+      void this.readiness.scheduleRuntime(id);
+    }
   }
 
   async toggleEnabled(id: string): Promise<void> {

@@ -20,16 +20,16 @@ ARG APP_REVISION=unknown
 ARG APP_BUILD_TIME=unknown
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates docker.io \
+  && apt-get install -y --no-install-recommends ca-certificates docker.io openssh-client sshpass \
   && rm -rf /var/lib/apt/lists/* \
   && corepack enable \
   && corepack prepare pnpm@10.33.2 --activate
 
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV APP_VERSION=$APP_VERSION
-ENV APP_REVISION=$APP_REVISION
-ENV APP_BUILD_TIME=$APP_BUILD_TIME
+ENV NODE_ENV=production \
+  PORT=3000 \
+  APP_VERSION=$APP_VERSION \
+  APP_REVISION=$APP_REVISION \
+  APP_BUILD_TIME=$APP_BUILD_TIME
 
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/node_modules ./node_modules

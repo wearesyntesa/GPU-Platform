@@ -46,6 +46,10 @@ services:
       CADDY_ACCESS_LOG_PATH: /logs/access.json
       DOCKER_HOST: unix:///var/run/docker.sock
       LOCAL_WORKER_ADDRESS: ${LOCAL_WORKER_ADDRESS:-127.0.0.1}
+      WORKER_SSH_USER: ${WORKER_SSH_USER:-helmy}
+      WORKER_SSH_PASSWORD: ${WORKER_SSH_PASSWORD:-}
+      WORKER_SSH_KEY_PATH: ${WORKER_SSH_KEY_PATH:-}
+      WORKER_IMAGE_ARTIFACT_DIR: ${WORKER_IMAGE_ARTIFACT_DIR:-/tmp/rpl-gpu-images}
       MIGRATION_SEMAPHORE_PATH: /run/rpl-gpu/migration-complete
     volumes:
       - caddy-logs:/logs

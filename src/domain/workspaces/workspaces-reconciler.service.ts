@@ -6,7 +6,7 @@ import { CaddyService } from '@/infrastructure/proxy/caddy.service';
 import { DbService } from '@/infrastructure/db/db.service';
 import { AuditService } from '@/infrastructure/audit/audit.service';
 import { sessionRequests } from '@/infrastructure/db/schema';
-import { EnvironmentImageBuilderService } from '@/domain/environments/environment-image-builder.service';
+import { EnvironmentImageReadinessService } from '@/domain/environments/environment-image-readiness.service';
 import { RetentionService } from '@/domain/retention/retention.service';
 import { WorkspaceActivityLogService } from './workspace-activity-log.service';
 
@@ -30,7 +30,7 @@ export class WorkspacesReconcilerService implements OnApplicationBootstrap {
     private readonly caddyService: CaddyService,
     private readonly dbService: DbService,
     private readonly audit: AuditService,
-    private readonly environmentImageBuilder: EnvironmentImageBuilderService,
+    private readonly environmentImageReadiness: EnvironmentImageReadinessService,
     private readonly retention: RetentionService,
     private readonly activityLog: WorkspaceActivityLogService,
   ) {}
@@ -104,10 +104,19 @@ export class WorkspacesReconcilerService implements OnApplicationBootstrap {
 
   private async provisionOne(request: SessionRequest): Promise<boolean> {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
-      const worker = await this.workspacesService.pickWorker(request.gpuTarget);
+      const runtime = await this.workspacesService.getEnvironmentImage(request.runtimeImageId);
+      if (!runtime) {
+        this.logger.error(`Runtime image not found for request=${request.id}`);
+        return false;
+      }
+
+      await this.environmentImageReadiness.scheduleRuntime(runtime.id);
+
+      const readyWorkerIds = await this.environmentImageReadiness.listReadyWorkerIds(runtime);
+      const worker = await this.workspacesService.pickWorker(request.gpuTarget, readyWorkerIds);
       if (!worker) {
         this.logger.warn(
-          `No available worker for gpuTarget=${request.gpuTarget}, request=${request.id}`,
+          `No available worker with ready image for gpuTarget=${request.gpuTarget}, runtime=${runtime.id}, request=${request.id}`,
         );
         return false;
       }
@@ -115,12 +124,6 @@ export class WorkspacesReconcilerService implements OnApplicationBootstrap {
       const port = await this.workspacesService.allocatePort();
       if (port === null) {
         this.logger.warn(`No available port for request=${request.id}`);
-        return false;
-      }
-
-      const runtime = await this.workspacesService.getEnvironmentImage(request.runtimeImageId);
-      if (!runtime) {
-        this.logger.error(`Runtime image not found for request=${request.id}`);
         return false;
       }
 
@@ -152,7 +155,8 @@ export class WorkspacesReconcilerService implements OnApplicationBootstrap {
       const constraints: string[] = worker.swarmNodeId ? [`node.id == ${worker.swarmNodeId}`] : [];
 
       try {
-        const workspaceImage = await this.environmentImageBuilder.ensureImage(runtime);
+        const workspaceImage = await this.environmentImageReadiness.isReady(runtime, worker);
+        if (!workspaceImage) return false;
         const existingServiceId = await this.swarmService.findServiceByName(
           session.swarmServiceName!,
         );

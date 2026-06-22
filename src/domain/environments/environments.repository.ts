@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { eq, not } from 'drizzle-orm';
+import { and, eq, not } from 'drizzle-orm';
 import { DbService } from '@/infrastructure/db/db.service';
-import { runtimeImages } from '@/infrastructure/db/schema';
+import { runtimeImages, runtimeImageWorkerStatuses, workers } from '@/infrastructure/db/schema';
 
 export type EnvironmentImage = typeof runtimeImages.$inferSelect;
+export type RuntimeImageWorkerStatus = typeof runtimeImageWorkerStatuses.$inferSelect;
+export type EnvironmentWorker = typeof workers.$inferSelect;
 
 @Injectable()
 export class EnvironmentsRepository {
@@ -28,6 +30,14 @@ export class EnvironmentsRepository {
 
   listAll(): Promise<EnvironmentImage[]> {
     return this.dbService.db.select().from(runtimeImages).orderBy(runtimeImages.name);
+  }
+
+  listEligibleWorkers(): Promise<EnvironmentWorker[]> {
+    return this.dbService.db
+      .select()
+      .from(workers)
+      .where(and(eq(workers.enabled, true), eq(workers.maintenance, false)))
+      .orderBy(workers.name);
   }
 
   async create(data: {
@@ -77,5 +87,83 @@ export class EnvironmentsRepository {
         updatedAt: new Date(),
       })
       .where(eq(runtimeImages.id, id));
+  }
+
+  async upsertWorkerImageStatus(data: {
+    runtimeImageId: string;
+    workerId: string;
+    imageRef: string;
+    imageHash: string;
+    imageId?: string | null;
+    artifactSha256?: string | null;
+    status: RuntimeImageWorkerStatus['status'];
+    failureReason?: string | null;
+    readyAt?: Date | null;
+  }): Promise<void> {
+    const now = new Date();
+    await this.dbService.db
+      .insert(runtimeImageWorkerStatuses)
+      .values({
+        runtimeImageId: data.runtimeImageId,
+        workerId: data.workerId,
+        imageRef: data.imageRef,
+        imageHash: data.imageHash,
+        imageId: data.imageId ?? null,
+        artifactSha256: data.artifactSha256 ?? null,
+        status: data.status,
+        failureReason: data.failureReason ?? null,
+        checkedAt: now,
+        readyAt: data.readyAt ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [
+          runtimeImageWorkerStatuses.runtimeImageId,
+          runtimeImageWorkerStatuses.workerId,
+          runtimeImageWorkerStatuses.imageHash,
+        ],
+        set: {
+          imageRef: data.imageRef,
+          imageId: data.imageId ?? null,
+          artifactSha256: data.artifactSha256 ?? null,
+          status: data.status,
+          failureReason: data.failureReason ?? null,
+          checkedAt: now,
+          readyAt: data.readyAt ?? null,
+          updatedAt: now,
+        },
+      });
+  }
+
+  async findWorkerImageStatus(data: {
+    runtimeImageId: string;
+    workerId: string;
+    imageHash: string;
+  }): Promise<RuntimeImageWorkerStatus | null> {
+    const rows = await this.dbService.db
+      .select()
+      .from(runtimeImageWorkerStatuses)
+      .where(
+        and(
+          eq(runtimeImageWorkerStatuses.runtimeImageId, data.runtimeImageId),
+          eq(runtimeImageWorkerStatuses.workerId, data.workerId),
+          eq(runtimeImageWorkerStatuses.imageHash, data.imageHash),
+        ),
+      )
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async listReadyWorkerIds(runtimeImageId: string, imageHash: string): Promise<string[]> {
+    const rows = await this.dbService.db
+      .select({ workerId: runtimeImageWorkerStatuses.workerId })
+      .from(runtimeImageWorkerStatuses)
+      .where(
+        and(
+          eq(runtimeImageWorkerStatuses.runtimeImageId, runtimeImageId),
+          eq(runtimeImageWorkerStatuses.imageHash, imageHash),
+          eq(runtimeImageWorkerStatuses.status, 'ready'),
+        ),
+      );
+    return rows.map((row) => row.workerId);
   }
 }

@@ -121,7 +121,7 @@ export class WorkspacesRepository {
       .filter((proxyPath): proxyPath is string => proxyPath !== null);
   }
 
-  async pickWorker(gpuTarget: string): Promise<WorkspaceWorker | null> {
+  async pickWorker(gpuTarget: string, readyWorkerIds?: string[]): Promise<WorkspaceWorker | null> {
     const busyWorkers = await this.dbService.db
       .select({ workerId: sessions.workerId })
       .from(sessions)
@@ -133,12 +133,15 @@ export class WorkspacesRepository {
     let condition = and(eq(workers.enabled, true), eq(workers.maintenance, false));
 
     if (busyWorkerIds.length > 0) condition = and(condition, notInArray(workers.id, busyWorkerIds));
+    if (readyWorkerIds && readyWorkerIds.length === 0) return null;
+    if (readyWorkerIds && readyWorkerIds.length > 0)
+      condition = and(condition, inArray(workers.id, readyWorkerIds));
     if (!isWildcardGpuTarget(gpuTarget)) condition = and(condition, eq(workers.gpuType, gpuTarget));
 
     const rows = await this.dbService.db
       .select()
       .from(workers)
-      .where(condition!)
+      .where(condition)
       .orderBy(workers.name)
       .limit(1);
     return rows[0] ?? null;
