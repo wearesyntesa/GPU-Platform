@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DbService } from '@/infrastructure/db/db.service';
+import { SwarmService, type SwarmTaskInfo } from '@/infrastructure/swarm/swarm.service';
 import {
   EnvironmentsRepository,
   type EnvironmentImage,
@@ -21,6 +22,7 @@ export class EnvironmentImageReadinessService implements OnApplicationBootstrap 
     private readonly dbService: DbService,
     private readonly environments: EnvironmentsRepository,
     private readonly builder: EnvironmentImageBuilderService,
+    private readonly swarm: SwarmService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -91,57 +93,88 @@ export class EnvironmentImageReadinessService implements OnApplicationBootstrap 
     }
     if (missingWorkers.length === 0) return;
 
-    let artifact: Awaited<ReturnType<EnvironmentImageBuilderService['buildArtifact']>>;
-    try {
-      for (const worker of missingWorkers) {
-        await this.environments.upsertWorkerImageStatus({
-          runtimeImageId: runtime.id,
-          workerId: worker.id,
-          imageRef: identity.imageRef,
-          imageHash: identity.imageHash,
-          status: 'building',
-        });
-      }
-      artifact = await this.builder.buildArtifact(runtime);
-    } catch (err) {
-      const reason = (err as Error).message;
-      for (const worker of missingWorkers) {
-        await this.environments.upsertWorkerImageStatus({
-          runtimeImageId: runtime.id,
-          workerId: worker.id,
-          imageRef: identity.imageRef,
-          imageHash: identity.imageHash,
-          status: 'failed',
-          failureReason: reason,
-        });
-      }
-      return;
-    }
-
+    const buildSpec = this.builder.buildSpec(runtime);
     for (const worker of missingWorkers) {
       try {
-        const workerImageId = await this.builder.loadArtifactOnWorker(worker.address, artifact);
-        await this.environments.upsertWorkerImageStatus({
-          runtimeImageId: runtime.id,
-          workerId: worker.id,
-          imageRef: artifact.imageRef,
-          imageHash: artifact.imageHash,
-          imageId: workerImageId || artifact.imageId,
-          artifactSha256: artifact.artifactSha256,
-          status: 'ready',
-          readyAt: new Date(),
-        });
+        await this.reconcileWorker(runtime, worker, buildSpec);
       } catch (err) {
         await this.environments.upsertWorkerImageStatus({
           runtimeImageId: runtime.id,
           workerId: worker.id,
-          imageRef: artifact.imageRef,
-          imageHash: artifact.imageHash,
-          artifactSha256: artifact.artifactSha256,
+          imageRef: buildSpec.imageRef,
+          imageHash: buildSpec.imageHash,
           status: 'failed',
           failureReason: (err as Error).message,
         });
       }
     }
+  }
+
+  private async reconcileWorker(
+    runtime: EnvironmentImage,
+    worker: EnvironmentWorker,
+    buildSpec: ReturnType<EnvironmentImageBuilderService['buildSpec']>,
+  ): Promise<void> {
+    if (!worker.swarmNodeId) throw new Error(`Worker ${worker.id} has no Swarm node id`);
+    const serviceName = this.builderServiceName(runtime.id, worker.id, buildSpec.imageHash);
+    let serviceId = await this.swarm.findServiceByName(serviceName);
+    if (!serviceId) {
+      const service = await this.swarm.createEnvironmentImageBuildService({
+        name: serviceName,
+        runtimeImageId: runtime.id,
+        workerId: worker.id,
+        workerSwarmNodeId: worker.swarmNodeId,
+        ...buildSpec,
+      });
+      serviceId = service.serviceId;
+    }
+
+    const tasks = await this.swarm.inspectServiceTasks(serviceId);
+    const latestTask = tasks[0];
+    if (latestTask && this.isBuildComplete(latestTask)) {
+      await this.environments.upsertWorkerImageStatus({
+        runtimeImageId: runtime.id,
+        workerId: worker.id,
+        imageRef: buildSpec.imageRef,
+        imageHash: buildSpec.imageHash,
+        status: 'ready',
+        readyAt: new Date(),
+      });
+      await this.swarm.removeService(serviceId);
+      return;
+    }
+
+    if (latestTask && this.isBuildFailed(latestTask)) {
+      await this.environments.upsertWorkerImageStatus({
+        runtimeImageId: runtime.id,
+        workerId: worker.id,
+        imageRef: buildSpec.imageRef,
+        imageHash: buildSpec.imageHash,
+        status: 'failed',
+        failureReason: latestTask.error ?? `Builder task ${latestTask.taskId} ended as ${latestTask.state}`,
+      });
+      await this.swarm.removeService(serviceId);
+      return;
+    }
+
+    await this.environments.upsertWorkerImageStatus({
+      runtimeImageId: runtime.id,
+      workerId: worker.id,
+      imageRef: buildSpec.imageRef,
+      imageHash: buildSpec.imageHash,
+      status: 'building',
+    });
+  }
+
+  private builderServiceName(runtimeId: string, workerId: string, imageHash: string): string {
+    return `rpl-env-builder-${runtimeId.slice(0, 8)}-${workerId.slice(0, 8)}-${imageHash.slice(0, 12)}`;
+  }
+
+  private isBuildComplete(task: SwarmTaskInfo): boolean {
+    return task.state === 'complete';
+  }
+
+  private isBuildFailed(task: SwarmTaskInfo): boolean {
+    return ['failed', 'rejected', 'shutdown'].includes(task.state);
   }
 }

@@ -95,7 +95,6 @@ export class EnvironmentsRepository {
     imageRef: string;
     imageHash: string;
     imageId?: string | null;
-    artifactSha256?: string | null;
     status: RuntimeImageWorkerStatus['status'];
     failureReason?: string | null;
     readyAt?: Date | null;
@@ -109,7 +108,6 @@ export class EnvironmentsRepository {
         imageRef: data.imageRef,
         imageHash: data.imageHash,
         imageId: data.imageId ?? null,
-        artifactSha256: data.artifactSha256 ?? null,
         status: data.status,
         failureReason: data.failureReason ?? null,
         checkedAt: now,
@@ -124,7 +122,6 @@ export class EnvironmentsRepository {
         set: {
           imageRef: data.imageRef,
           imageId: data.imageId ?? null,
-          artifactSha256: data.artifactSha256 ?? null,
           status: data.status,
           failureReason: data.failureReason ?? null,
           checkedAt: now,

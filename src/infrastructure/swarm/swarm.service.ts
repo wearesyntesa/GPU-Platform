@@ -26,6 +26,17 @@ export interface CreateServiceOpts {
   volumeName: string;
 }
 
+export interface CreateEnvironmentImageBuildServiceOpts {
+  name: string;
+  runtimeImageId: string;
+  workerId: string;
+  workerSwarmNodeId: string;
+  imageRef: string;
+  imageHash: string;
+  dockerfileBase64: string;
+  requirementsBase64: string;
+}
+
 type GpuDeviceRequest = {
   Driver: 'nvidia';
   Count: number;
@@ -147,6 +158,7 @@ export class SwarmService {
       ],
       Labels: {
         'rpl.gpu-platform': 'true',
+        'rpl.workspace-service': 'true',
         'rpl.service': opts.name,
       },
     };
@@ -155,6 +167,7 @@ export class SwarmService {
       Name: opts.name,
       Labels: {
         'rpl.gpu-platform': 'true',
+        'rpl.workspace-service': 'true',
         'rpl.service': opts.name,
       },
       TaskTemplate: {
@@ -194,6 +207,54 @@ export class SwarmService {
     return { serviceId, serviceName: opts.name };
   }
 
+  async createEnvironmentImageBuildService(
+    opts: CreateEnvironmentImageBuildServiceOpts,
+  ): Promise<CreateServiceResult> {
+    this.logger.log(`Creating image builder service: ${opts.name} image=${opts.imageRef}`);
+
+    const service = await this.docker.createService({
+      Name: opts.name,
+      Labels: {
+        'rpl.environment-image-builder': 'true',
+        'rpl.runtime-image-id': opts.runtimeImageId,
+        'rpl.worker-id': opts.workerId,
+        'rpl.image-hash': opts.imageHash,
+        'rpl.service': opts.name,
+      },
+      TaskTemplate: {
+        ContainerSpec: {
+          Image: env.environmentImageBuilderImage,
+          Env: [
+            `RPL_ENV_IMAGE_REF=${opts.imageRef}`,
+            `RPL_ENV_DOCKERFILE_B64=${opts.dockerfileBase64}`,
+            `RPL_ENV_REQUIREMENTS_B64=${opts.requirementsBase64}`,
+          ],
+          Command: ['sh', '-lc', this.environmentImageBuildCommand()],
+          Mounts: [
+            {
+              Type: 'bind',
+              Source: '/var/run/docker.sock',
+              Target: '/var/run/docker.sock',
+            },
+          ],
+          Labels: {
+            'rpl.environment-image-builder': 'true',
+            'rpl.service': opts.name,
+          },
+        },
+        Placement: {
+          Constraints: [`node.id == ${opts.workerSwarmNodeId}`],
+        },
+        RestartPolicy: {
+          Condition: 'none',
+        },
+      },
+      Mode: { Replicated: { Replicas: 1 } },
+    });
+
+    return { serviceId: service.id, serviceName: opts.name };
+  }
+
   async inspectServiceTasks(serviceId: string): Promise<SwarmTaskInfo[]> {
     const tasks = await this.docker.listTasks({
       filters: JSON.stringify({ service: [serviceId] }),
@@ -217,7 +278,7 @@ export class SwarmService {
 
   async listPlatformServices(): Promise<PlatformServiceInfo[]> {
     const services = await this.docker.listServices({
-      filters: JSON.stringify({ label: ['rpl.gpu-platform=true'] }),
+      filters: JSON.stringify({ label: ['rpl.gpu-platform=true', 'rpl.workspace-service=true'] }),
     });
     return services
       .map((service) => ({ id: service.ID ?? '', name: service.Spec?.Name ?? '' }))
@@ -293,5 +354,18 @@ export class SwarmService {
 
   private memoryBytesToGb(value: number | undefined): number | null {
     return value ? Math.max(1, Math.round(value / 1024 / 1024 / 1024)) : null;
+  }
+
+  private environmentImageBuildCommand(): string {
+    return [
+      'set -eu',
+      'build_dir=$(mktemp -d)',
+      'trap "rm -rf $build_dir" EXIT',
+      'printf %s "$RPL_ENV_DOCKERFILE_B64" | base64 -d > "$build_dir/Dockerfile"',
+      'printf %s "$RPL_ENV_REQUIREMENTS_B64" | base64 -d > "$build_dir/requirements.txt"',
+      'docker build --no-cache -t "$RPL_ENV_IMAGE_REF" "$build_dir"',
+      'docker run --rm "$RPL_ENV_IMAGE_REF" python3 -m pip check',
+      'docker image inspect "$RPL_ENV_IMAGE_REF" --format "{{.Id}}"',
+    ].join('; ');
   }
 }

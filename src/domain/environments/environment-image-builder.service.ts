@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -65,12 +65,11 @@ export function environmentDockerfile(baseImageRef: string): string {
   ].join('\n');
 }
 
-export interface BuiltEnvironmentImage {
+export interface EnvironmentImageBuildSpec {
   imageRef: string;
   imageHash: string;
-  imageId: string;
-  artifactPath: string;
-  artifactSha256: string;
+  dockerfileBase64: string;
+  requirementsBase64: string;
 }
 
 @Injectable()
@@ -78,7 +77,8 @@ export class EnvironmentImageBuilderService {
   private readonly logger = new Logger(EnvironmentImageBuilderService.name);
 
   async ensureImage(runtime: EnvironmentImage): Promise<string> {
-    if (packageLines(runtime.packageManifest).length === 0) return runtime.imageRef;
+    const packages = packageLines(runtime.packageManifest);
+    if (packages.length === 0) return runtime.imageRef;
 
     const imageRef = derivedEnvironmentImageRef(runtime);
     const previousImageId = await this.imageId(imageRef);
@@ -86,10 +86,7 @@ export class EnvironmentImageBuilderService {
     const contextDir = await mkdtemp(join(tmpdir(), 'rpl-env-image-'));
     try {
       await writeFile(join(contextDir, 'Dockerfile'), environmentDockerfile(runtime.imageRef));
-      await writeFile(
-        join(contextDir, 'requirements.txt'),
-        `${packageLines(runtime.packageManifest).join('\n')}\n`,
-      );
+      await writeFile(join(contextDir, 'requirements.txt'), `${packages.join('\n')}\n`);
       this.logger.log(`Building environment image ${imageRef} from ${runtime.imageRef}`);
       await this.runDocker(['build', '-t', imageRef, contextDir], 20 * 60 * 1000);
       const currentImageId = await this.imageId(imageRef);
@@ -100,35 +97,13 @@ export class EnvironmentImageBuilderService {
     }
   }
 
-  async buildArtifact(runtime: EnvironmentImage): Promise<BuiltEnvironmentImage> {
+  buildSpec(runtime: EnvironmentImage): EnvironmentImageBuildSpec {
     const identity = environmentImageIdentity(runtime);
-    await mkdir(env.workerImageArtifactDir, { recursive: true });
-    const artifactPath = join(env.workerImageArtifactDir, `${identity.imageHash}.tar`);
-    const contextDir = await mkdtemp(join(tmpdir(), 'rpl-env-image-'));
-    try {
-      await writeFile(join(contextDir, 'Dockerfile'), environmentDockerfile(runtime.imageRef));
-      await writeFile(join(contextDir, 'requirements.txt'), `${packageLines(runtime.packageManifest).join('\n')}\n`);
-      this.logger.log(`Building environment image ${identity.imageRef} from ${runtime.imageRef}`);
-      await this.runDocker(['build', '--no-cache', '-t', identity.imageRef, contextDir], 20 * 60 * 1000);
-      await this.runDocker(['run', '--rm', identity.imageRef, 'python3', '-m', 'pip', 'check'], 5 * 60 * 1000);
-      const imageId = await this.imageId(identity.imageRef);
-      if (!imageId) throw new Error(`Built image ${identity.imageRef} is missing after build`);
-      await this.runDocker(['save', '-o', artifactPath, identity.imageRef], 10 * 60 * 1000);
-      const artifactSha256 = createHash('sha256').update(await readFile(artifactPath)).digest('hex');
-      return { ...identity, imageId, artifactPath, artifactSha256 };
-    } finally {
-      await rm(contextDir, { recursive: true, force: true });
-    }
-  }
-
-  async loadArtifactOnWorker(workerAddress: string, artifact: BuiltEnvironmentImage): Promise<string> {
-    const remotePath = `/tmp/${artifact.imageHash}.tar`;
-    await this.runScp(artifact.artifactPath, `${env.workerSshUser}@${workerAddress}:${remotePath}`);
-    await this.runSsh(workerAddress, `test \"$(sha256sum ${remotePath} | cut -d' ' -f1)\" = \"${artifact.artifactSha256}\"`);
-    await this.runSsh(workerAddress, `docker load -i ${remotePath}`);
-    const { stdout } = await this.runSsh(workerAddress, `docker image inspect ${artifact.imageRef} --format '{{.Id}}'`);
-    await this.runSsh(workerAddress, `docker run --rm ${artifact.imageRef} python3 -m pip check`);
-    return stdout.trim();
+    return {
+      ...identity,
+      dockerfileBase64: Buffer.from(environmentDockerfile(runtime.imageRef)).toString('base64'),
+      requirementsBase64: Buffer.from(`${packageLines(runtime.packageManifest).join('\n')}\n`).toString('base64'),
+    };
   }
 
   private async imageId(imageRef: string): Promise<string | null> {
@@ -166,40 +141,6 @@ export class EnvironmentImageBuilderService {
       maxBuffer: 1024 * 1024 * 8,
     });
     return { stdout };
-  }
-
-  private async runSsh(host: string, command: string): Promise<{ stdout: string }> {
-    return execFileAsync(this.sshBinary(), [...this.sshArgs(), `${env.workerSshUser}@${host}`, command], {
-      timeout: 20 * 60 * 1000,
-      maxBuffer: 1024 * 1024 * 8,
-    });
-  }
-
-  private async runScp(source: string, destination: string): Promise<void> {
-    await execFileAsync(this.sshBinary(), [...this.scpArgs(), source, destination], {
-      timeout: 20 * 60 * 1000,
-      maxBuffer: 1024 * 1024 * 8,
-    });
-  }
-
-  private sshBinary(): string {
-    return env.workerSshPassword ? 'sshpass' : 'ssh';
-  }
-
-  private sshArgs(): string[] {
-    const args = this.sshConnectionArgs();
-    return env.workerSshPassword ? ['-p', env.workerSshPassword, 'ssh', ...args] : args;
-  }
-
-  private scpArgs(): string[] {
-    const args = this.sshConnectionArgs();
-    return env.workerSshPassword ? ['-p', env.workerSshPassword, 'scp', ...args] : args;
-  }
-
-  private sshConnectionArgs(): string[] {
-    const base = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/tmp/rpl_gpu_known_hosts'];
-    const key = env.workerSshKeyPath ? ['-i', env.workerSshKeyPath] : [];
-    return [...base, ...key];
   }
 
   private isImageMissingError(error: unknown): boolean {

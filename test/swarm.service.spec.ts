@@ -1,48 +1,42 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SwarmService } from '@/infrastructure/swarm/swarm.service';
 
-function serviceWithRemove(remove: ReturnType<typeof vi.fn>): SwarmService {
+function serviceWithDocker<TDocker extends object>(docker: TDocker): SwarmService {
   const service = new SwarmService();
-  (service as unknown as { docker: { getService: () => { remove: typeof remove } } }).docker = {
-    getService: () => ({ remove }),
-  };
+  (service as unknown as { docker: TDocker }).docker = docker;
   return service;
+}
+
+function serviceWithRemove(remove: ReturnType<typeof vi.fn>): SwarmService {
+  return serviceWithDocker({
+    getService: () => ({ remove }),
+  });
 }
 
 function serviceWithVolumeRemove(remove: ReturnType<typeof vi.fn>): SwarmService {
-  const service = new SwarmService();
-  (service as unknown as { docker: { getVolume: () => { remove: typeof remove } } }).docker = {
+  return serviceWithDocker({
     getVolume: () => ({ remove }),
-  };
-  return service;
+  });
 }
 
 function serviceWithNodes(nodes: unknown[]): SwarmService {
-  const service = new SwarmService();
-  (service as unknown as { docker: { listNodes: () => Promise<unknown[]> } }).docker = {
+  return serviceWithDocker({
     listNodes: async () => nodes,
-  };
-  return service;
+  });
 }
 
 function serviceWithVolumes(labeledVolumes: unknown[], allVolumes: unknown[]): SwarmService {
-  const service = new SwarmService();
   const listVolumes = vi.fn((opts?: unknown) =>
     Promise.resolve({ Volumes: opts ? labeledVolumes : allVolumes }),
   );
-  (service as unknown as { docker: { listVolumes: typeof listVolumes } }).docker = { listVolumes };
-  return service;
+  return serviceWithDocker({ listVolumes });
 }
 
 function serviceWithCreate(createService: ReturnType<typeof vi.fn>): SwarmService {
-  const service = new SwarmService();
-  (service as unknown as {
-    docker: { createVolume: ReturnType<typeof vi.fn>; createService: typeof createService };
-  }).docker = {
+  return serviceWithDocker({
     createVolume: vi.fn().mockResolvedValue({}),
     createService,
-  };
-  return service;
+  });
 }
 
 describe('SwarmService.removeService', () => {
@@ -181,6 +175,53 @@ describe('SwarmService.createService', () => {
             ]),
           }),
         }),
+      }),
+    );
+  });
+});
+
+describe('SwarmService.createEnvironmentImageBuildService', () => {
+  it('creates a worker-pinned builder service with Docker socket only', async () => {
+    const createService = vi.fn().mockResolvedValue({ id: 'builder-service-1' });
+
+    await serviceWithCreate(createService).createEnvironmentImageBuildService({
+      name: 'rpl-env-builder-runtime-worker-abcdef123456',
+      runtimeImageId: 'runtime-1',
+      workerId: 'worker-1',
+      workerSwarmNodeId: 'node-1',
+      imageRef: 'rpl-gpu-env-local-jupyter-runtime1:sha-abcdef123456',
+      imageHash: 'abcdef123456',
+      dockerfileBase64: 'RE9DS0VSRklMRQ==',
+      requirementsBase64: 'cmVxdWlyZW1lbnRz',
+    });
+
+    expect(createService).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Labels: expect.objectContaining({
+          'rpl.environment-image-builder': 'true',
+          'rpl.runtime-image-id': 'runtime-1',
+          'rpl.worker-id': 'worker-1',
+          'rpl.image-hash': 'abcdef123456',
+        }),
+        TaskTemplate: expect.objectContaining({
+          Placement: { Constraints: ['node.id == node-1'] },
+          RestartPolicy: { Condition: 'none' },
+          ContainerSpec: expect.objectContaining({
+            Env: expect.arrayContaining([
+              'RPL_ENV_IMAGE_REF=rpl-gpu-env-local-jupyter-runtime1:sha-abcdef123456',
+              'RPL_ENV_DOCKERFILE_B64=RE9DS0VSRklMRQ==',
+              'RPL_ENV_REQUIREMENTS_B64=cmVxdWlyZW1lbnRz',
+            ]),
+            Mounts: [
+              {
+                Type: 'bind',
+                Source: '/var/run/docker.sock',
+                Target: '/var/run/docker.sock',
+              },
+            ],
+          }),
+        }),
+        Mode: { Replicated: { Replicas: 1 } },
       }),
     );
   });

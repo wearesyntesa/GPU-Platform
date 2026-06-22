@@ -20,7 +20,7 @@ ARG APP_REVISION=unknown
 ARG APP_BUILD_TIME=unknown
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates docker.io openssh-client sshpass \
+  && apt-get install -y --no-install-recommends ca-certificates docker.io \
   && rm -rf /var/lib/apt/lists/* \
   && corepack enable \
   && corepack prepare pnpm@10.33.2 --activate
