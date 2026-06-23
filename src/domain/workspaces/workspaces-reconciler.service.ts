@@ -7,6 +7,7 @@ import { DbService } from '@/infrastructure/db/db.service';
 import { AuditService } from '@/infrastructure/audit/audit.service';
 import { sessionRequests } from '@/infrastructure/db/schema';
 import { EnvironmentImageReadinessService } from '@/domain/environments/environment-image-readiness.service';
+import { environmentImageIdentity } from '@/domain/environments/environment-image-builder.service';
 import { RetentionService } from '@/domain/retention/retention.service';
 import { WorkspaceActivityLogService } from './workspace-activity-log.service';
 
@@ -188,6 +189,27 @@ export class WorkspacesReconcilerService implements OnApplicationBootstrap {
         this.logger.log(`Swarm service ${result.serviceId} linked to session ${session.id}`);
         return true;
       } catch (err) {
+        const errMsg = (err as Error).message ?? '';
+        if (errMsg.includes('No such image') || errMsg.includes('no such image')) {
+          this.logger.warn(
+            `Worker ${worker.id} missing image for runtime=${runtime.id}, resetting readiness and retrying`,
+          );
+          const identity = environmentImageIdentity(runtime);
+          await this.environmentImageReadiness.resetWorkerReadiness(
+            runtime.id,
+            worker.id,
+            identity.imageHash,
+          );
+          void this.environmentImageReadiness.scheduleRuntime(runtime.id);
+          const transitioned = await this.workspacesService.transitionToFailed(
+            session.id,
+            `Image not ready on worker, rebuilding. Please retry shortly. (${errMsg})`,
+          );
+          if (!transitioned) throw err;
+          if (session.swarmServiceName)
+            await this.safeRemoveVolume(this.workspaceVolumeName(session.swarmServiceName));
+          return false;
+        }
         const transitioned = await this.workspacesService.transitionToFailed(
           session.id,
           (err as Error).message,

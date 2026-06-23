@@ -148,6 +148,61 @@ describe('WorkspacesReconcilerService provisioning failure', () => {
     expect(createFromApprovedRequest).not.toHaveBeenCalled();
   });
 
+  it('resets worker readiness and returns false when Swarm reports No such image', async () => {
+    const resetWorkerReadiness = vi.fn().mockResolvedValue(undefined);
+    const scheduleRuntime = vi.fn().mockResolvedValue(undefined);
+    const transitionToFailed = vi.fn().mockResolvedValue(true);
+    const service = reconcilerWith({
+      workspaces: {
+        pickWorker: vi.fn().mockResolvedValue({ id: 'worker-1', swarmNodeId: 'node-1' }),
+        allocatePort: vi.fn().mockResolvedValue(20000),
+        getEnvironmentImage: vi.fn().mockResolvedValue({
+          id: 'runtime-1',
+          name: 'Local Jupyter',
+          imageRef: 'rpl/jupyter-local:dev',
+          packageManifest: 'jupyterlab',
+        }),
+        generateJupyterToken: vi.fn().mockResolvedValue({ raw: 'token', hash: 'hash' }),
+        createFromApprovedRequest: vi.fn().mockResolvedValue({
+          id: 'session-1',
+          swarmServiceName: 'rpl-workspace-session-1',
+          proxyPath: '/workspaces/request-1',
+        }),
+        transitionToFailed,
+      },
+      swarm: {
+        findServiceByName: vi.fn().mockResolvedValue(null),
+        createService: vi.fn().mockRejectedValue(new Error('No such image: rpl-gpu-env-local-jupyter-a13f22f0:sha-968d3c5316a8')),
+        removeVolume: vi.fn().mockResolvedValue(undefined),
+      },
+      imageReadiness: {
+        scheduleRuntime,
+        resetWorkerReadiness,
+        listReadyWorkerIds: vi.fn().mockResolvedValue(['worker-1']),
+        isReady: vi.fn().mockResolvedValue('rpl-gpu-env-local-jupyter-a13f22f0:sha-968d3c5316a8'),
+      },
+    });
+    const provisionOne = (service as unknown as { provisionOne: ProvisionOne }).provisionOne.bind(service);
+
+    await expect(
+      provisionOne({
+        id: 'request-1',
+        userId: 'user-1',
+        runtimeImageId: 'runtime-1',
+        gpuTarget: 'auto',
+        requestedCpu: 1,
+        requestedMemoryGb: 1,
+      } as typeof sessionRequests.$inferSelect),
+    ).resolves.toBe(false);
+
+    expect(resetWorkerReadiness).toHaveBeenCalledWith('runtime-1', 'worker-1', expect.any(String));
+    expect(scheduleRuntime).toHaveBeenCalled();
+    expect(transitionToFailed).toHaveBeenCalledWith(
+      'session-1',
+      expect.stringContaining('Image not ready on worker'),
+    );
+  });
+
   it('keeps the grant approved when provisioning fails so the user can retry', async () => {
     const calls: string[] = [];
     const cancelGrantForFailedWorkspace = vi.fn();

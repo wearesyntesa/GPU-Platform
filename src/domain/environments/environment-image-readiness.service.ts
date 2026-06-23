@@ -25,7 +25,8 @@ export class EnvironmentImageReadinessService implements OnApplicationBootstrap 
     private readonly swarm: SwarmService,
   ) {}
 
-  onApplicationBootstrap(): void {
+  async onApplicationBootstrap(): Promise<void> {
+    await this.environments.resetAllReadyToRebuild();
     void this.reconcile();
   }
 
@@ -39,6 +40,7 @@ export class EnvironmentImageReadinessService implements OnApplicationBootstrap 
           this.environments.listEnabled(),
           this.environments.listEligibleWorkers(),
         ]);
+        await this.environments.removeStatusesForRemovedWorkers(workers.map((w) => w.id));
         for (const runtime of runtimes) {
           await this.reconcileRuntime(runtime, workers);
         }
@@ -75,6 +77,19 @@ export class EnvironmentImageReadinessService implements OnApplicationBootstrap 
     return this.environments.listReadyWorkerIds(runtime.id, identity.imageHash);
   }
 
+  private readonly imageReadinessTtlMs = 4 * 60 * 60 * 1000;
+  private readonly failedRetryMs = 30 * 60 * 1000;
+
+  async resetWorkerReadiness(runtimeImageId: string, workerId: string, imageHash: string): Promise<void> {
+    await this.environments.upsertWorkerImageStatus({
+      runtimeImageId,
+      workerId,
+      imageRef: 'reset-pending',
+      imageHash,
+      status: 'pending',
+    });
+  }
+
   private async reconcileRuntime(
     runtime: EnvironmentImage,
     workers: EnvironmentWorker[],
@@ -82,6 +97,7 @@ export class EnvironmentImageReadinessService implements OnApplicationBootstrap 
     if (packageLines(runtime.packageManifest).length === 0) return;
     if (workers.length === 0) return;
     const identity = environmentImageIdentity(runtime);
+    const now = Date.now();
     const missingWorkers = [];
     for (const worker of workers) {
       const status = await this.environments.findWorkerImageStatus({
@@ -89,7 +105,28 @@ export class EnvironmentImageReadinessService implements OnApplicationBootstrap 
         workerId: worker.id,
         imageHash: identity.imageHash,
       });
-      if (status?.status !== 'ready') missingWorkers.push(worker);
+      if (status?.status === 'ready') {
+        const age = now - new Date(status.readyAt!).getTime();
+        if (age > this.imageReadinessTtlMs) {
+          this.logger.log(`Image TTL expired for worker=${worker.id} runtime=${runtime.id}, resetting to pending`);
+          await this.environments.upsertWorkerImageStatus({
+            runtimeImageId: runtime.id,
+            workerId: worker.id,
+            imageRef: identity.imageRef,
+            imageHash: identity.imageHash,
+            status: 'pending',
+          });
+          missingWorkers.push(worker);
+        }
+      } else if (status?.status === 'failed') {
+        const age = now - new Date(status.updatedAt).getTime();
+        if (age > this.failedRetryMs) {
+          this.logger.log(`Retrying failed image build for worker=${worker.id} runtime=${runtime.id}`);
+          missingWorkers.push(worker);
+        }
+      } else {
+        missingWorkers.push(worker);
+      }
     }
     if (missingWorkers.length === 0) return;
 

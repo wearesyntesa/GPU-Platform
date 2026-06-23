@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, not } from 'drizzle-orm';
+import { and, eq, inArray, not } from 'drizzle-orm';
 import { DbService } from '@/infrastructure/db/db.service';
 import { runtimeImages, runtimeImageWorkerStatuses, workers } from '@/infrastructure/db/schema';
 
@@ -162,5 +162,22 @@ export class EnvironmentsRepository {
         ),
       );
     return rows.map((row) => row.workerId);
+  }
+
+  async resetAllReadyToRebuild(): Promise<void> {
+    await this.dbService.db
+      .update(runtimeImageWorkerStatuses)
+      .set({ status: 'pending', updatedAt: new Date() })
+      .where(eq(runtimeImageWorkerStatuses.status, 'ready'));
+  }
+
+  async removeStatusesForRemovedWorkers(eligibleWorkerIds: string[]): Promise<void> {
+    if (eligibleWorkerIds.length === 0) {
+      await this.dbService.db.delete(runtimeImageWorkerStatuses);
+      return;
+    }
+    await this.dbService.db
+      .delete(runtimeImageWorkerStatuses)
+      .where(not(inArray(runtimeImageWorkerStatuses.workerId, eligibleWorkerIds)));
   }
 }
